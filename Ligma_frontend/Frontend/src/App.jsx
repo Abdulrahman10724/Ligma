@@ -1,11 +1,16 @@
+import "react";
+import { Provider } from "react-redux";
+import { Toaster } from "sonner";
+import { store } from "./redux/store";
+import AppRoutes from "./routes/AppRoutes";
 
 function App() {
-
   return (
-    <>
-     <h1 className="text-3xl font-bold underline bg-blue-500 text-white p-4 mx-auto px-2">welcome to frontend</h1>
-    </>
-  )
+    <Provider store={store}>
+      <AppRoutes />
+      <Toaster position="bottom-right" richColors theme="system" />
+    </Provider>
+  );
 }
 
-export default App
+export default App;

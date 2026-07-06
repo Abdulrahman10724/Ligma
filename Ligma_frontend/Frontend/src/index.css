@@ -1,1 +1,88 @@
 @import "tailwindcss";
+
+@theme {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-surface: var(--bg-surface);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --color-ai-action: var(--ai-action);
+  --color-ai-decision: var(--ai-decision);
+  --color-ai-question: var(--ai-question);
+  --color-ai-reference: var(--ai-reference);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  
+  --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  --bg-primary: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --border: #E4E4E7;
+  --text-primary: #18181B;
+  --text-secondary: #71717A;
+  --accent: #6366F1;
+  --accent-hover: #4F46E5;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  /* AI Badges */
+  --ai-action: #EF4444;
+  --ai-decision: #22C55E;
+  --ai-question: #F59E0B;
+  --ai-reference: #8B5CF6;
+
+  /* Sticky Notes */
+  --sticky-yellow: #FEF3C7;
+  --sticky-pink: #FCE7F3;
+  --sticky-blue: #DBEAFE;
+  --sticky-green: #D1FAE5;
+  --sticky-orange: #FFEDD5;
+}
+
+/* Supports system dark mode as well as a class override */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --bg-primary: #0F0F12;
+    --bg-surface: #1A1A1F;
+    --border: #2A2A31;
+    --text-primary: #F4F4F5;
+    --text-secondary: #A1A1AA;
+    --accent: #818CF8;
+    --accent-hover: #6366F1;
+    --success: #4ADE80;
+    --warning: #FBBF24;
+    --danger: #F87171;
+  }
+}
+
+.dark {
+  --bg-primary: #0F0F12;
+  --bg-surface: #1A1A1F;
+  --border: #2A2A31;
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --accent: #818CF8;
+  --accent-hover: #6366F1;
+  --success: #4ADE80;
+  --warning: #FBBF24;
+  --danger: #F87171;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
