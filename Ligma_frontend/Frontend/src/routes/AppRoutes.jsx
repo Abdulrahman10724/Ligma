@@ -1,4 +1,4 @@
-import React from "react";
+import "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "../pages/LoginPage";
@@ -12,6 +12,7 @@ import MembersPage from "../pages/MembersPage";
 import HistoryPage from "../pages/HistoryPage";
 import SettingsPage from "../pages/SettingsPage";
 import AcceptInvitationPage from "../pages/AcceptInvitationPage";
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
   return (
@@ -23,10 +24,24 @@ export default function AppRoutes() {
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
 
         {/* Dashboard Route */}
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Workspace Scoped Routes */}
-        <Route path="/workspace/:id" element={<WorkspacePage />}>
+        <Route
+          path="/workspace/:id"
+          element={
+            <ProtectedRoute>
+              <WorkspacePage />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="canvas" replace />} />
           <Route path="canvas" element={<CanvasPage />} />
           <Route path="tasks" element={<TaskBoardPage />} />

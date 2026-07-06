@@ -1,35 +1,47 @@
-import mongoose from "mongoose";
+import { MongoClient } from "mongodb";
+
 import config from "./env.config.js";
 import logger from "../utils/logger.util.js";
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(config.MONGODB_URI);
+let client;
+let db;
 
-    logger.info(`🔌 MongoDB Connected: ${conn.connection.host}`);
+const connectDB = async () => {
+  if (db) {
+    return db;
+  }
+
+  try {
+    client = new MongoClient(config.MONGODB_URI);
+    await client.connect();
+    db = client.db();
+
+    await db.command({ ping: 1 });
+    logger.info("🔌 MongoDB connected successfully.");
+
+    process.once("SIGINT", async () => {
+      await client.close();
+      logger.info("🔌 MongoDB connection closed through app termination.");
+      process.exit(0);
+    });
+
+    return db;
   } catch (error) {
-   console.log(`❌ MongoDB Connection Error: ${error.message}`);
+    logger.error(`❌ MongoDB Connection Error: ${error.message}`);
     process.exit(1);
   }
 };
 
-mongoose.connection.on("connected", () => {
-  logger.info("🟢 Mongoose connected to database.");
-});
+const getDb = () => {
+  if (!db) {
+    throw new Error("Database not initialized. Call connectDB() first.");
+  }
 
-mongoose.connection.on("error", (err) => {
-  logger.error(`🔴 Mongoose connection error: ${err.message}`);
-});
+  return db;
+};
 
-mongoose.connection.on("disconnected", () => {
-  logger.warn("🟡 Mongoose connection disconnected.");
-});
+const getCollection = (collectionName) => getDb().collection(collectionName);
 
-// Graceful shutdown on app termination
-process.on("SIGINT", async () => {
-  await mongoose.connection.close();
-  logger.info("🔌 Mongoose connection closed through app termination.");
-  process.exit(0);
-});
+export { connectDB, getDb, getCollection };
 
 export default connectDB;

@@ -16,7 +16,8 @@ const validate = (schema) => (req, res, next) => {
     // Format error to pass to centralized error handler
     const validationError = new Error("Validation Error");
     validationError.statusCode = 400;
-    validationError.errors = error.errors.map((e) => ({
+    const issues = error.issues || error.errors || [];
+    validationError.errors = issues.map((e) => ({
       field: e.path.join("."),
       message: e.message,
     }));
