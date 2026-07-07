@@ -1,5 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
+import invitationReducer from "./invitationSlice";
 import workspaceReducer from "./workspaceSlice";
 
 const canvasReducerPlaceholder = (state = { nodes: {}, loading: false }) => state;
@@ -7,6 +8,7 @@ const canvasReducerPlaceholder = (state = { nodes: {}, loading: false }) => stat
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    invitations: invitationReducer,
     workspace: workspaceReducer,
     canvas: canvasReducerPlaceholder,
   },

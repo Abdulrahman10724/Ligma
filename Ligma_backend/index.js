@@ -12,6 +12,7 @@ import errorHandler from "./src/middleware/error.middleware.js";
 import { initSocket } from "./src/socket/socket.service.js";
 import logger from "./src/utils/logger.util.js";
 import authRoutes from "./src/routes/auth.routes.js";
+import invitationRoutes from "./src/routes/invitation.routes.js";
 import workspaceRoutes from "./src/routes/workspace.routes.js";
 
 const app = express();
@@ -71,6 +72,7 @@ const startServer = async () => {
   });
 
   app.use("/api/v1/auth", authRoutes);
+  app.use("/api/v1/invitations", invitationRoutes);
   app.use("/api/v1/workspaces", workspaceRoutes);
 
   // 4. Initialize Socket.IO

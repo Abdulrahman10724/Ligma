@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,6 +9,9 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { fetchWorkspaceById, updateWorkspace } from "../redux/workspaceSlice";
+import { fetchWorkspaceInvitations } from "../redux/invitationSlice";
+import InviteMemberDialog from "../components/invitations/InviteMemberDialog";
+import InvitationList from "../components/invitations/InvitationList";
 
 const schema = z.object({
   title: z.string().trim().min(2, "Workspace name must be at least 2 characters long"),
@@ -19,6 +22,9 @@ export default function SettingsPage() {
   const { id } = useParams();
   const dispatch = useDispatch();
   const { activeWorkspace, saving, loading, error } = useSelector((state) => state.workspace);
+  const { list: invitations, loading: invitationLoading, error: invitationError } = useSelector((state) => state.invitations);
+  const { user } = useSelector((state) => state.auth);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -36,6 +42,14 @@ export default function SettingsPage() {
       reset({ title: activeWorkspace.title || "", description: activeWorkspace.description || "" });
     }
   }, [activeWorkspace, reset]);
+
+  useEffect(() => {
+    if (id && activeWorkspace && user?.id && activeWorkspace.ownerId === user.id) {
+      dispatch(fetchWorkspaceInvitations(id));
+    }
+  }, [dispatch, id, activeWorkspace, user?.id]);
+
+  const canManageInvitations = activeWorkspace?.ownerId && user?.id === activeWorkspace.ownerId;
 
   const onSubmit = async (values) => {
     if (!id) return;
@@ -72,7 +86,33 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
+
+        <div className="border-b border-[color:var(--border)] p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Invitations</h3>
+              <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Create and manage workspace invitation links.</p>
+            </div>
+            {canManageInvitations ? (
+              <Button type="button" onClick={() => setInviteOpen(true)}>Invite member</Button>
+            ) : null}
+          </div>
+
+          {canManageInvitations ? (
+            <div className="mt-5 grid gap-3">
+              {invitationLoading ? <p className="text-sm text-[color:var(--text-secondary)]">Loading invitations...</p> : null}
+              {invitationError ? <div className="rounded-lg border border-[color:var(--danger)]/20 bg-[color:var(--danger)]/10 px-4 py-3 text-sm text-[color:var(--danger)]">{invitationError}</div> : null}
+              {!invitationLoading ? <InvitationList invitations={invitations} workspaceId={id} onRefresh={(workspaceId) => dispatch(fetchWorkspaceInvitations(workspaceId))} /> : null}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-[color:var(--text-secondary)]">Only the workspace owner can create or manage invitations.</p>
+          )}
+        </div>
       </div>
+
+      {canManageInvitations ? (
+        <InviteMemberDialog workspaceId={id} open={inviteOpen} onOpenChange={setInviteOpen} onCreated={() => dispatch(fetchWorkspaceInvitations(id))} />
+      ) : null}
     </div>
   );
 }
