@@ -7,4 +7,4 @@ export const authService = {
   logout: () => apiClient.post("/auth/logout"),
 };
 
-export default authService;
+export default authService; 

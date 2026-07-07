@@ -1,14 +1,13 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
+import workspaceReducer from "./workspaceSlice";
 
-// Placeholder reducers to be replaced in future phases
-const workspaceReducerPlaceholder = (state = { list: [], activeWorkspace: null, loading: false }, action) => state;
-const canvasReducerPlaceholder = (state = { nodes: {}, loading: false }, action) => state;
+const canvasReducerPlaceholder = (state = { nodes: {}, loading: false }) => state;
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    workspace: workspaceReducerPlaceholder,
+    workspace: workspaceReducer,
     canvas: canvasReducerPlaceholder,
   },
   middleware: (getDefaultMiddleware) =>

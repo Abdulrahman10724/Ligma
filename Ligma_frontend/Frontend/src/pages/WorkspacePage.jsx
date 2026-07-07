@@ -1,9 +1,22 @@
-import React from "react";
+import  { useEffect } from "react";
 import { NavLink, Outlet, useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { LayoutDashboard, Milestone, MessageSquare, Users, History, Settings, LogOut } from "lucide-react";
+
+import { fetchWorkspaceById } from "../redux/workspaceSlice";
+import AccountMenu from "../components/layout/AccountMenu";
+import LogoutButton from "../components/layout/LogoutButton";
 
 export default function WorkspacePage() {
   const { id } = useParams();
+  const dispatch = useDispatch();
+  const { activeWorkspace } = useSelector((state) => state.workspace);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchWorkspaceById(id));
+    }
+  }, [dispatch, id]);
 
   const navigation = [
     { name: "Canvas", href: `/workspace/${id}/canvas`, icon: LayoutDashboard },
@@ -60,12 +73,14 @@ export default function WorkspacePage() {
         {/* Top Navbar */}
         <header className="h-16 bg-[color:var(--bg-surface)] border-b border-[color:var(--border)] flex items-center justify-between px-8 z-10">
           <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold text-[color:var(--text-secondary)]">Workspace ID: {id}</span>
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--text-secondary)]">Workspace</p>
+              <h1 className="text-sm font-semibold text-[color:var(--text-primary)]">{activeWorkspace?.title || "Loading workspace..."}</h1>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-full bg-[color:var(--accent)] text-white flex items-center justify-center font-bold text-sm">
-              AR
-            </span>
+            <LogoutButton />
+            <AccountMenu />
           </div>
         </header>
 

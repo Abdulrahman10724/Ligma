@@ -1,34 +1,61 @@
-import React from "react";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+
+import { Button } from "../components/ui/button";
+import WorkspaceCard from "../components/workspace/WorkspaceCard";
+import WorkspaceEmptyState from "../components/workspace/WorkspaceEmptyState";
+import WorkspaceLoadingState from "../components/workspace/WorkspaceLoadingState";
+import CreateWorkspaceDialog from "../components/workspace/CreateWorkspaceDialog";
+import { fetchWorkspaces } from "../redux/workspaceSlice";
+import AccountMenu from "../components/layout/AccountMenu";
+import LogoutButton from "../components/layout/LogoutButton";
 
 export default function DashboardPage() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [createOpen, setCreateOpen] = useState(false);
+  const { list, loading, error } = useSelector((state) => state.workspace);
+ 
+  useEffect(() => {
+    dispatch(fetchWorkspaces());
+  }, [dispatch]);
+
+  const openWorkspace = (workspaceId) => {
+    navigate(`/workspace/${workspaceId}/settings`);
+  };
+
   return (
-    <div className="min-h-screen bg-[color:var(--bg-primary)] text-[color:var(--text-primary)] p-8">
-      <div className="max-w-6xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
+    <div className="min-h-screen bg-[color:var(--bg-primary)] px-4 py-8 text-[color:var(--text-primary)] sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[color:var(--accent)]">My Workspaces</h1>
-            <p className="text-[color:var(--text-secondary)] text-sm">Create and manage your collaborative spaces</p>
+            <h1 className="text-3xl font-bold tracking-tight text-[color:var(--accent)] sm:text-4xl">My workspaces</h1>
+            <p className="mt-2 text-sm text-[color:var(--text-secondary)]">Create and manage collaborative spaces.</p>
           </div>
-          <button className="px-4 py-2 bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)] text-white rounded-md font-medium transition-colors">
-            + New Workspace
-          </button>
+          <div className="flex items-center gap-3">
+            <LogoutButton />
+            <Button onClick={() => setCreateOpen(true)}>New workspace</Button>
+            <AccountMenu />
+          </div>
         </header>
-        
-        {/* Placeholder dashboard card list */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 bg-[color:var(--bg-surface)] border border-[color:var(--border)] rounded-lg shadow-sm flex flex-col justify-between h-48 hover:border-[color:var(--accent)] transition-colors cursor-pointer">
-            <div>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-[color:var(--accent)] text-white w-max">Lead</span>
-              <h3 className="text-lg font-bold mt-2">Example Sprint Plan</h3>
-              <p className="text-sm text-[color:var(--text-secondary)] mt-1">Sprint planning for product launch</p>
-            </div>
-            <div className="flex justify-between items-center text-xs text-[color:var(--text-secondary)]">
-              <span>Last active: 2 hours ago</span>
-              <span>4 members</span>
-            </div>
+
+        {error ? <div className="rounded-xl border border-[color:var(--danger)]/20 bg-[color:var(--danger)]/10 px-4 py-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
+
+        {loading ? <WorkspaceLoadingState /> : null}
+
+        {!loading && list.length === 0 ? <WorkspaceEmptyState onCreate={() => setCreateOpen(true)} /> : null}
+
+        {!loading && list.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {list.map((workspace) => (
+              <WorkspaceCard key={workspace.id} workspace={workspace} onClick={() => openWorkspace(workspace.id)} />
+            ))}
           </div>
-        </div>
+        ) : null}
       </div>
+
+      <CreateWorkspaceDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

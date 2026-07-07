@@ -24,24 +24,10 @@ export default function AppRoutes() {
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
 
         {/* Dashboard Route */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
         {/* Workspace Scoped Routes */}
-        <Route
-          path="/workspace/:id"
-          element={
-            <ProtectedRoute>
-              <WorkspacePage />
-            </ProtectedRoute>
-          }
-        >
+        <Route path="/workspace/:id" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>}>
           <Route index element={<Navigate to="canvas" replace />} />
           <Route path="canvas" element={<CanvasPage />} />
           <Route path="tasks" element={<TaskBoardPage />} />

@@ -29,8 +29,7 @@ export const bootstrapAuth = createAsyncThunk("auth/bootstrap", async (_, { reje
       return { user: null, token: null };
     }
 
-    const response = await authService.me();
-    return response;
+    return await authService.me();
   } catch (error) {
     persistSession(null);
     return rejectWithValue(error?.message || "Unable to restore session");
@@ -39,8 +38,7 @@ export const bootstrapAuth = createAsyncThunk("auth/bootstrap", async (_, { reje
 
 export const loginUser = createAsyncThunk("auth/login", async (credentials, { rejectWithValue }) => {
   try {
-    const response = await authService.login(credentials);
-    return response;
+    return await authService.login(credentials);
   } catch (error) {
     return rejectWithValue(error?.message || "Login failed");
   }
@@ -48,8 +46,7 @@ export const loginUser = createAsyncThunk("auth/login", async (credentials, { re
 
 export const registerUser = createAsyncThunk("auth/register", async (payload, { rejectWithValue }) => {
   try {
-    const response = await authService.register(payload);
-    return response;
+    return await authService.register(payload);
   } catch (error) {
     return rejectWithValue(error?.message || "Registration failed");
   }
@@ -58,8 +55,10 @@ export const registerUser = createAsyncThunk("auth/register", async (payload, { 
 export const logoutUser = createAsyncThunk("auth/logout", async (_, { rejectWithValue }) => {
   try {
     await authService.logout();
+    persistSession(null);
     return null;
   } catch (error) {
+    persistSession(null);
     return rejectWithValue(error?.message || "Logout failed");
   }
 });
@@ -142,7 +141,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.loading = false;
         state.error = null;
-        persistSession(null);
       })
       .addCase(logoutUser.rejected, (state) => {
         state.user = null;
@@ -150,7 +148,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.loading = false;
         state.error = null;
-        persistSession(null);
       });
   },
 });
