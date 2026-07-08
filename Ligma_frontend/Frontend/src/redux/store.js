@@ -2,15 +2,16 @@ import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
 import invitationReducer from "./invitationSlice";
 import workspaceReducer from "./workspaceSlice";
-
-const canvasReducerPlaceholder = (state = { nodes: {}, loading: false }) => state;
+import memberReducer from "./memberSlice";
+import canvasReducer from "./canvasSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     invitations: invitationReducer,
     workspace: workspaceReducer,
-    canvas: canvasReducerPlaceholder,
+    members: memberReducer,
+    canvas: canvasReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

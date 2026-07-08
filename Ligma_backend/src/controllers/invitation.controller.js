@@ -1,9 +1,12 @@
 import {
   acceptInvitation,
+  acceptInvitationById,
   createWorkspaceInvitation,
   getInvitationByToken,
+  listPendingInvitationsForUser,
   listWorkspaceInvitations,
   rejectInvitation,
+  rejectInvitationById,
   revokeInvitation,
   revokeInvitationById,
 } from "../services/invitation.service.js";
@@ -36,6 +39,15 @@ const listInvitationsHandler = async (req, res, next) => {
   }
 };
 
+const listInboxHandler = async (req, res, next) => {
+  try {
+    const invitations = await listPendingInvitationsForUser(req.user.email);
+    return sendSuccess(res, 200, "Invitation inbox retrieved successfully", { invitations });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getInvitationHandler = async (req, res, next) => {
   try {
     const invitation = await getInvitationByToken(req.params.token);
@@ -63,6 +75,24 @@ const rejectInvitationHandler = async (req, res, next) => {
   }
 };
 
+const acceptInvitationByIdHandler = async (req, res, next) => {
+  try {
+    const result = await acceptInvitationById(req.params.invitationId, req.user);
+    return sendSuccess(res, 200, "Invitation accepted successfully", result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const rejectInvitationByIdHandler = async (req, res, next) => {
+  try {
+    const invitation = await rejectInvitationById(req.params.invitationId, req.user);
+    return sendSuccess(res, 200, "Invitation rejected successfully", { invitation });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const revokeInvitationHandler = async (req, res, next) => {
   try {
     const invitation = await revokeInvitation(req.params.token, req.user.id);
@@ -84,9 +114,12 @@ const revokeInvitationByIdHandler = async (req, res, next) => {
 export {
   createInvitationHandler,
   listInvitationsHandler,
+  listInboxHandler,
   getInvitationHandler,
   acceptInvitationHandler,
   rejectInvitationHandler,
+  acceptInvitationByIdHandler,
+  rejectInvitationByIdHandler,
   revokeInvitationHandler,
   revokeInvitationByIdHandler,
 };
@@ -94,9 +127,12 @@ export {
 export default {
   createInvitationHandler,
   listInvitationsHandler,
+  listInboxHandler,
   getInvitationHandler,
   acceptInvitationHandler,
   rejectInvitationHandler,
+  acceptInvitationByIdHandler,
+  rejectInvitationByIdHandler,
   revokeInvitationHandler,
   revokeInvitationByIdHandler,
 };

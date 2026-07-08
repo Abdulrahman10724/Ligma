@@ -11,7 +11,7 @@ import { Textarea } from "../components/ui/textarea";
 import { fetchWorkspaceById, updateWorkspace } from "../redux/workspaceSlice";
 import { fetchWorkspaceInvitations } from "../redux/invitationSlice";
 import InviteMemberDialog from "../components/invitations/InviteMemberDialog";
-import InvitationList from "../components/invitations/InvitationList";
+import { PendingInvitationList, InvitationHistoryList } from "../components/invitations/InvitationList";
 
 const schema = z.object({
   title: z.string().trim().min(2, "Workspace name must be at least 2 characters long"),
@@ -90,7 +90,7 @@ export default function SettingsPage() {
         <div className="border-b border-[color:var(--border)] p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-lg font-semibold">Invitations</h3>
+              <h3 className="text-lg font-semibold">Pending invitations</h3>
               <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Create and manage workspace invitation links.</p>
             </div>
             {canManageInvitations ? (
@@ -102,11 +102,19 @@ export default function SettingsPage() {
             <div className="mt-5 grid gap-3">
               {invitationLoading ? <p className="text-sm text-[color:var(--text-secondary)]">Loading invitations...</p> : null}
               {invitationError ? <div className="rounded-lg border border-[color:var(--danger)]/20 bg-[color:var(--danger)]/10 px-4 py-3 text-sm text-[color:var(--danger)]">{invitationError}</div> : null}
-              {!invitationLoading ? <InvitationList invitations={invitations} workspaceId={id} onRefresh={(workspaceId) => dispatch(fetchWorkspaceInvitations(workspaceId))} /> : null}
+              {!invitationLoading ? <PendingInvitationList invitations={invitations} workspaceId={id} onRefresh={(workspaceId) => dispatch(fetchWorkspaceInvitations(workspaceId))} /> : null}
             </div>
           ) : (
             <p className="mt-4 text-sm text-[color:var(--text-secondary)]">Only the workspace owner can create or manage invitations.</p>
           )}
+        </div>
+
+        <div className="p-6">
+          <h3 className="text-lg font-semibold">Invitation history</h3>
+          <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Accepted, rejected, expired, and revoked invitations.</p>
+          <div className="mt-5">
+            <InvitationHistoryList invitations={invitations} />
+          </div>
         </div>
       </div>
 

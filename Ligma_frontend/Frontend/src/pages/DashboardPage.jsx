@@ -10,6 +10,7 @@ import CreateWorkspaceDialog from "../components/workspace/CreateWorkspaceDialog
 import { fetchWorkspaces } from "../redux/workspaceSlice";
 import AccountMenu from "../components/layout/AccountMenu";
 import LogoutButton from "../components/layout/LogoutButton";
+import InvitationInboxMenu from "../components/layout/InvitationInboxMenu";
 
 export default function DashboardPage() {
   const dispatch = useDispatch();
@@ -34,6 +35,7 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm text-[color:var(--text-secondary)]">Create and manage collaborative spaces.</p>
           </div>
           <div className="flex items-center gap-3">
+            <InvitationInboxMenu />
             <LogoutButton />
             <Button onClick={() => setCreateOpen(true)}>New workspace</Button>
             <AccountMenu />

@@ -1,20 +1,55 @@
-import { ensureWorkspaceIndexes, createWorkspace, findWorkspaceById, findWorkspacesByOwner, sanitizeWorkspace, updateWorkspaceById } from "../models/workspace.model.js";
+import {
+  ensureWorkspaceIndexes,
+  createWorkspace,
+  findWorkspaceById,
+  findWorkspacesByIds,
+  findWorkspacesByOwner,
+  sanitizeWorkspace,
+  updateWorkspaceById,
+} from "../models/workspace.model.js";
+import { findMembershipsForUser } from "../models/workspace-member.model.js";
 
 const listUserWorkspaces = async (ownerId) => {
   await ensureWorkspaceIndexes();
 
-  const workspaces = await findWorkspacesByOwner(ownerId);
+  const [ownedWorkspaces, memberships] = await Promise.all([
+    findWorkspacesByOwner(ownerId),
+    findMembershipsForUser(ownerId),
+  ]);
 
-  return workspaces.map(sanitizeWorkspace);
+  const memberWorkspaceIds = memberships.map((membership) => membership.workspaceId?.toString()).filter(Boolean);
+  const memberWorkspaces = memberWorkspaceIds.length ? await findWorkspacesByIds(memberWorkspaceIds) : [];
+  const workspacesById = new Map();
+
+  for (const workspace of [...ownedWorkspaces, ...memberWorkspaces]) {
+    workspacesById.set(workspace._id.toString(), sanitizeWorkspace(workspace));
+  }
+
+  return Array.from(workspacesById.values()).sort((left, right) => {
+    const leftDate = new Date(left.updatedAt || left.createdAt || 0).getTime();
+    const rightDate = new Date(right.updatedAt || right.createdAt || 0).getTime();
+    return rightDate - leftDate;
+  });
 };
 
 const getWorkspace = async (workspaceId, ownerId) => {
   const workspace = await findWorkspaceById(workspaceId);
 
-  if (!workspace || workspace.ownerId.toString() !== ownerId) {
+  if (!workspace) {
     const error = new Error("Workspace not found");
     error.statusCode = 404;
     throw error;
+  }
+
+  if (workspace.ownerId.toString() !== ownerId) {
+    const membership = await findMembershipsForUser(ownerId);
+    const isMember = membership.some((entry) => entry.workspaceId?.toString() === workspaceId);
+
+    if (!isMember) {
+      const error = new Error("Workspace not found");
+      error.statusCode = 404;
+      throw error;
+    }
   }
 
   return sanitizeWorkspace(workspace);

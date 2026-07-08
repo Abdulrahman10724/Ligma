@@ -12,6 +12,12 @@ const tokenSchema = z.object({
   }),
 });
 
+const invitationIdSchema = z.object({
+  params: z.object({
+    invitationId: z.string().regex(/^[a-f0-9]{24}$/i, "Invitation ID is invalid"),
+  }),
+});
+
 const createInvitationSchema = z.object({
   body: z.object({
     email: z.string().trim().email("Please provide a valid email address").max(255, "Email must be 255 characters or less"),
@@ -31,11 +37,12 @@ const revokeWorkspaceInvitationSchema = z.object({
   }),
 });
 
-export { workspaceIdSchema, tokenSchema, createInvitationSchema, createWorkspaceInvitationSchema, revokeWorkspaceInvitationSchema };
+export { workspaceIdSchema, tokenSchema, invitationIdSchema, createInvitationSchema, createWorkspaceInvitationSchema, revokeWorkspaceInvitationSchema };
 
 export default {
   workspaceIdSchema,
   tokenSchema,
+  invitationIdSchema,
   createInvitationSchema,
   createWorkspaceInvitationSchema,
   revokeWorkspaceInvitationSchema,

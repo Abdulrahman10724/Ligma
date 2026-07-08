@@ -4,11 +4,13 @@ import invitationService from "../services/invitation.service";
 
 const initialState = {
   list: [],
+  inbox: [],
   currentInvitation: null,
   createResult: null,
   loading: false,
   saving: false,
   publicLoading: false,
+  inboxLoading: false,
   error: null,
 };
 
@@ -36,6 +38,14 @@ export const fetchInvitationByToken = createAsyncThunk("invitations/fetchByToken
   }
 });
 
+export const fetchMyPendingInvitations = createAsyncThunk("invitations/fetchInbox", async (_, { rejectWithValue }) => {
+  try {
+    return await invitationService.listInbox();
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to load invitations");
+  }
+});
+
 export const acceptInvitationByToken = createAsyncThunk("invitations/accept", async (token, { rejectWithValue }) => {
   try {
     return await invitationService.acceptByToken(token);
@@ -47,6 +57,22 @@ export const acceptInvitationByToken = createAsyncThunk("invitations/accept", as
 export const rejectInvitationByToken = createAsyncThunk("invitations/reject", async (token, { rejectWithValue }) => {
   try {
     return await invitationService.rejectByToken(token);
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to reject invitation");
+  }
+});
+
+export const acceptMyInvitationById = createAsyncThunk("invitations/acceptById", async (invitationId, { rejectWithValue }) => {
+  try {
+    return await invitationService.acceptById(invitationId);
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to accept invitation");
+  }
+});
+
+export const rejectMyInvitationById = createAsyncThunk("invitations/rejectById", async (invitationId, { rejectWithValue }) => {
+  try {
+    return await invitationService.rejectById(invitationId);
   } catch (error) {
     return rejectWithValue(error?.message || "Unable to reject invitation");
   }
@@ -84,6 +110,9 @@ const invitationSlice = createSlice({
     },
     clearInvitationCreateResult(state) {
       state.createResult = null;
+    },
+    clearInvitationInbox(state) {
+      state.inbox = [];
     },
   },
   extraReducers: (builder) => {
@@ -130,6 +159,17 @@ const invitationSlice = createSlice({
         state.publicLoading = false;
         state.error = action.payload || "Unable to load invitation";
       })
+      .addCase(fetchMyPendingInvitations.pending, (state) => {
+        state.inboxLoading = true;
+      })
+      .addCase(fetchMyPendingInvitations.fulfilled, (state, action) => {
+        state.inboxLoading = false;
+        state.inbox = action.payload?.data?.invitations || [];
+      })
+      .addCase(fetchMyPendingInvitations.rejected, (state, action) => {
+        state.inboxLoading = false;
+        state.error = action.payload || "Unable to load invitations";
+      })
       .addCase(acceptInvitationByToken.fulfilled, (state, action) => {
         const invitation = action.payload?.data?.invitation;
         if (invitation) {
@@ -150,10 +190,30 @@ const invitationSlice = createSlice({
           updateInvitationInList(state, invitation);
         }
       })
+      .addCase(acceptMyInvitationById.fulfilled, (state, action) => {
+        const invitation = action.payload?.data?.invitation;
+        if (invitation) {
+          state.inbox = state.inbox.filter((item) => item.id !== invitation.id);
+          updateInvitationInList(state, invitation);
+        }
+      })
+      .addCase(rejectMyInvitationById.fulfilled, (state, action) => {
+        const invitation = action.payload?.data?.invitation;
+        if (invitation) {
+          state.inbox = state.inbox.filter((item) => item.id !== invitation.id);
+          updateInvitationInList(state, invitation);
+        }
+      })
       .addCase(acceptInvitationByToken.rejected, (state, action) => {
         state.error = action.payload || "Unable to accept invitation";
       })
       .addCase(rejectInvitationByToken.rejected, (state, action) => {
+        state.error = action.payload || "Unable to reject invitation";
+      })
+      .addCase(acceptMyInvitationById.rejected, (state, action) => {
+        state.error = action.payload || "Unable to accept invitation";
+      })
+      .addCase(rejectMyInvitationById.rejected, (state, action) => {
         state.error = action.payload || "Unable to reject invitation";
       })
       .addCase(revokeInvitationById.rejected, (state, action) => {
@@ -162,6 +222,6 @@ const invitationSlice = createSlice({
   },
 });
 
-export const { clearCurrentInvitation, clearInvitationCreateResult } = invitationSlice.actions;
+export const { clearCurrentInvitation, clearInvitationCreateResult, clearInvitationInbox } = invitationSlice.actions;
 
 export default invitationSlice.reducer;

@@ -63,6 +63,12 @@ const findInvitationByWorkspaceAndEmail = async (workspaceId, email) =>
     status: "Pending",
   });
 
+const findPendingInvitationsByEmail = async (email) =>
+  getInvitationsCollection()
+    .find({ email: email.toLowerCase(), status: "Pending" })
+    .sort({ createdAt: -1 })
+    .toArray();
+
 const listInvitationsByWorkspace = async (workspaceId, status) => {
   const query = { workspaceId: new ObjectId(workspaceId) };
 
@@ -95,6 +101,7 @@ export {
   findInvitationByTokenHash,
   findInvitationById,
   findInvitationByWorkspaceAndEmail,
+  findPendingInvitationsByEmail,
   listInvitationsByWorkspace,
   updateInvitationByTokenHash,
   updateInvitationById,
@@ -109,6 +116,7 @@ export default {
   findInvitationByTokenHash,
   findInvitationById,
   findInvitationByWorkspaceAndEmail,
+  findPendingInvitationsByEmail,
   listInvitationsByWorkspace,
   updateInvitationByTokenHash,
   updateInvitationById,

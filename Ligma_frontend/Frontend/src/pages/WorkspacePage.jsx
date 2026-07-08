@@ -6,6 +6,7 @@ import { LayoutDashboard, Milestone, MessageSquare, Users, History, Settings, Lo
 import { fetchWorkspaceById } from "../redux/workspaceSlice";
 import AccountMenu from "../components/layout/AccountMenu";
 import LogoutButton from "../components/layout/LogoutButton";
+import InvitationInboxMenu from "../components/layout/InvitationInboxMenu";
 
 export default function WorkspacePage() {
   const { id } = useParams();
@@ -79,6 +80,7 @@ export default function WorkspacePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <InvitationInboxMenu />
             <LogoutButton />
             <AccountMenu />
           </div>

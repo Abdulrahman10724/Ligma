@@ -10,6 +10,7 @@ import {
   findInvitationByTokenHash,
   findInvitationById,
   findInvitationByWorkspaceAndEmail,
+  findPendingInvitationsByEmail,
   listInvitationsByWorkspace,
   sanitizeInvitation,
   updateInvitationByTokenHash,
@@ -133,6 +134,27 @@ const listWorkspaceInvitations = async (workspaceId, userId) => {
   };
 };
 
+const listPendingInvitationsForUser = async (email) => {
+  await ensureInvitationIndexes();
+  await expirePendingInvitations();
+
+  const invitations = await findPendingInvitationsByEmail(email);
+
+  const inbox = await Promise.all(
+    invitations.map(async (invitation) => {
+      const workspace = await findWorkspaceById(invitation.workspaceId.toString());
+      if (!workspace) return null;
+
+      return {
+        ...buildPublicInvitation(hydrateInvitation(invitation), sanitizeWorkspace(workspace)),
+        workspace: sanitizeWorkspace(workspace),
+      };
+    })
+  );
+
+  return inbox.filter(Boolean);
+};
+
 const getInvitationByToken = async (token) => {
   await ensureInvitationIndexes();
   await expirePendingInvitations();
@@ -208,6 +230,60 @@ const acceptInvitation = async (token, user) => {
   };
 };
 
+const acceptInvitationById = async (invitationId, user) => {
+  await ensureInvitationIndexes();
+  await ensureWorkspaceMemberIndexes();
+  await expirePendingInvitations();
+
+  const invitation = await findInvitationById(invitationId);
+
+  if (!invitation) {
+    const error = new Error("Invitation not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (invitation.status !== "Pending") {
+    const error = new Error(`Invitation is already ${invitation.status.toLowerCase()}`);
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
+    const error = new Error("This invitation is not assigned to the current user");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const workspace = await findWorkspaceById(invitation.workspaceId.toString());
+  if (!workspace) {
+    const error = new Error("Workspace not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const existingMember = await findWorkspaceMember(invitation.workspaceId.toString(), user.id);
+  if (!existingMember) {
+    await createWorkspaceMember({
+      workspaceId: invitation.workspaceId.toString(),
+      userId: user.id,
+      role: invitation.role,
+    });
+  }
+
+  const now = new Date();
+  const updated = await updateInvitationById(invitationId, {
+    status: "Accepted",
+    respondedAt: now,
+    updatedAt: now,
+  });
+
+  return {
+    invitation: hydrateInvitation(updated.value),
+    workspace: sanitizeWorkspace(workspace),
+  };
+};
+
 const rejectInvitation = async (token, user) => {
   await ensureInvitationIndexes();
   await expirePendingInvitations();
@@ -233,6 +309,40 @@ const rejectInvitation = async (token, user) => {
 
   const now = new Date();
   const updated = await updateInvitationByTokenHash(toTokenHash(token), {
+    status: "Rejected",
+    respondedAt: now,
+    updatedAt: now,
+  });
+
+  return hydrateInvitation(updated.value);
+};
+
+const rejectInvitationById = async (invitationId, user) => {
+  await ensureInvitationIndexes();
+  await expirePendingInvitations();
+
+  const invitation = await findInvitationById(invitationId);
+
+  if (!invitation) {
+    const error = new Error("Invitation not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (invitation.status !== "Pending") {
+    const error = new Error(`Invitation is already ${invitation.status.toLowerCase()}`);
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
+    const error = new Error("This invitation is not assigned to the current user");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const now = new Date();
+  const updated = await updateInvitationById(invitationId, {
     status: "Rejected",
     respondedAt: now,
     updatedAt: now,
@@ -302,9 +412,12 @@ const revokeInvitationById = async (workspaceId, invitationId, userId) => {
 export {
   createWorkspaceInvitation,
   listWorkspaceInvitations,
+  listPendingInvitationsForUser,
   getInvitationByToken,
   acceptInvitation,
+  acceptInvitationById,
   rejectInvitation,
+  rejectInvitationById,
   revokeInvitation,
   revokeInvitationById,
 };
@@ -312,8 +425,12 @@ export {
 export default {
   createWorkspaceInvitation,
   listWorkspaceInvitations,
+  listPendingInvitationsForUser,
   getInvitationByToken,
   acceptInvitation,
+  acceptInvitationById,
   rejectInvitation,
+  rejectInvitationById,
   revokeInvitation,
+  revokeInvitationById,
 };

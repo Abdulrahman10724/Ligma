@@ -6,8 +6,24 @@ const COLLECTION_NAME = "workspaces";
 
 const getWorkspacesCollection = () => getCollection(COLLECTION_NAME);
 
+let workspaceIndexesReady = false;
+let workspaceIndexesPromise = null;
+
 const ensureWorkspaceIndexes = async () => {
-  await getWorkspacesCollection().createIndex({ ownerId: 1, createdAt: -1 });
+  if (workspaceIndexesReady) {
+    return;
+  }
+
+  if (!workspaceIndexesPromise) {
+    workspaceIndexesPromise = (async () => {
+      await getWorkspacesCollection().createIndex({ ownerId: 1, createdAt: -1 });
+      workspaceIndexesReady = true;
+    })().finally(() => {
+      workspaceIndexesPromise = null;
+    });
+  }
+
+  await workspaceIndexesPromise;
 };
 
 const sanitizeWorkspace = (workspace) => {
@@ -26,6 +42,11 @@ const findWorkspaceById = async (workspaceId) => getWorkspacesCollection().findO
 
 const findWorkspacesByOwner = async (ownerId) =>
   getWorkspacesCollection().find({ ownerId: new ObjectId(ownerId) }).sort({ createdAt: -1 }).toArray();
+
+const findWorkspacesByIds = async (ids) =>
+  getWorkspacesCollection()
+    .find({ _id: { $in: ids.map((id) => new ObjectId(id)) } })
+    .toArray();
 
 const createWorkspace = async ({ title, description, ownerId }) => {
   const now = new Date();
@@ -67,6 +88,7 @@ export {
   sanitizeWorkspace,
   findWorkspaceById,
   findWorkspacesByOwner,
+  findWorkspacesByIds,
   createWorkspace,
   updateWorkspaceById,
 };
@@ -77,6 +99,7 @@ export default {
   sanitizeWorkspace,
   findWorkspaceById,
   findWorkspacesByOwner,
+  findWorkspacesByIds,
   createWorkspace,
   updateWorkspaceById,
 };

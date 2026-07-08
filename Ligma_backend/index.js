@@ -14,6 +14,8 @@ import logger from "./src/utils/logger.util.js";
 import authRoutes from "./src/routes/auth.routes.js";
 import invitationRoutes from "./src/routes/invitation.routes.js";
 import workspaceRoutes from "./src/routes/workspace.routes.js";
+import memberRoutes from "./src/routes/member.routes.js";
+import canvasNodeRoutes from "./src/routes/canvas-node.routes.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -74,10 +76,20 @@ const startServer = async () => {
   app.use("/api/v1/auth", authRoutes);
   app.use("/api/v1/invitations", invitationRoutes);
   app.use("/api/v1/workspaces", workspaceRoutes);
+  app.use("/api/v1/workspaces/:workspaceId/members", memberRoutes);
+  app.use("/api/v1/workspaces/:workspaceId/canvas", canvasNodeRoutes);
 
   // 4. Initialize Socket.IO
   initSocket(server);
 
+  //temp
+  app.use((req,res,next)=>{
+
+console.log(req.method,req.url)
+
+next()
+
+})
   // 5. Global Error Handling Middleware (must be registered last)
   app.use(errorHandler);
 

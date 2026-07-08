@@ -4,6 +4,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { Check, LogIn, UserPlus, XCircle } from "lucide-react";
 
 import { Button } from "../components/ui/button";
+import { fetchWorkspaces } from "../redux/workspaceSlice";
 import { fetchInvitationByToken, acceptInvitationByToken, rejectInvitationByToken, clearCurrentInvitation } from "../redux/invitationSlice";
 
 export default function AcceptInvitationPage() {
@@ -26,6 +27,7 @@ export default function AcceptInvitationPage() {
   const handleAccept = async () => {
     const result = await dispatch(acceptInvitationByToken(token));
     if (acceptInvitationByToken.fulfilled.match(result)) {
+      dispatch(fetchWorkspaces());
       const workspaceId = result.payload?.data?.workspace?.id;
       if (workspaceId) {
         navigate(`/workspace/${workspaceId}/settings`, { replace: true });
