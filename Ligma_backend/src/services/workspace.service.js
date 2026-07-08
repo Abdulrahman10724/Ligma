@@ -20,9 +20,23 @@ const listUserWorkspaces = async (ownerId) => {
   const memberWorkspaceIds = memberships.map((membership) => membership.workspaceId?.toString()).filter(Boolean);
   const memberWorkspaces = memberWorkspaceIds.length ? await findWorkspacesByIds(memberWorkspaceIds) : [];
   const workspacesById = new Map();
+  const memberRoleByWorkspaceId = new Map(
+    memberships
+      .filter((membership) => membership.workspaceId)
+      .map((membership) => [membership.workspaceId.toString(), membership.role || "Viewer"])
+  );
 
   for (const workspace of [...ownedWorkspaces, ...memberWorkspaces]) {
-    workspacesById.set(workspace._id.toString(), sanitizeWorkspace(workspace));
+    const sanitized = sanitizeWorkspace(workspace);
+    const workspaceId = workspace._id.toString();
+    const currentUserRole = workspace.ownerId.toString() === ownerId
+      ? "Lead"
+      : memberRoleByWorkspaceId.get(workspaceId) || "Viewer";
+
+    workspacesById.set(workspaceId, {
+      ...sanitized,
+      currentUserRole,
+    });
   }
 
   return Array.from(workspacesById.values()).sort((left, right) => {
@@ -41,18 +55,25 @@ const getWorkspace = async (workspaceId, ownerId) => {
     throw error;
   }
 
-  if (workspace.ownerId.toString() !== ownerId) {
-    const membership = await findMembershipsForUser(ownerId);
-    const isMember = membership.some((entry) => entry.workspaceId?.toString() === workspaceId);
+  let currentUserRole = "Lead";
 
-    if (!isMember) {
+  if (workspace.ownerId.toString() !== ownerId) {
+    const memberships = await findMembershipsForUser(ownerId);
+    const membership = memberships.find((entry) => entry.workspaceId?.toString() === workspaceId);
+
+    if (!membership) {
       const error = new Error("Workspace not found");
       error.statusCode = 404;
       throw error;
     }
+
+    currentUserRole = membership.role || "Viewer";
   }
 
-  return sanitizeWorkspace(workspace);
+  return {
+    ...sanitizeWorkspace(workspace),
+    currentUserRole,
+  };
 };
 
 const createUserWorkspace = async ({ title, description }, ownerId) => {

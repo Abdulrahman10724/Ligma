@@ -8,7 +8,7 @@ import {
   sanitizeCanvasNode,
   updateNode,
 } from "../models/canvas-node.model.js";
-import { assertWorkspaceAccess } from "./member.service.js";
+import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "./member.service.js";
 
 const listCanvasNodes = async (workspaceId, userId) => {
   await ensureCanvasNodeIndexes();
@@ -20,7 +20,7 @@ const listCanvasNodes = async (workspaceId, userId) => {
 
 const createCanvasNode = async (workspaceId, userId, payload) => {
   await ensureCanvasNodeIndexes();
-  await assertWorkspaceAccess(workspaceId, userId);
+  await assertWorkspaceEditAccess(workspaceId, userId);
 
   const { type, x, y, data } = payload;
 
@@ -29,7 +29,7 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
 };
 
 const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
-  await assertWorkspaceAccess(workspaceId, userId);
+  await assertWorkspaceEditAccess(workspaceId, userId);
 
   const existing = await findNodeById(nodeId);
   if (!existing || existing.workspaceId.toString() !== workspaceId) {
@@ -51,7 +51,7 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
 };
 
 const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
-  await assertWorkspaceAccess(workspaceId, userId);
+  await assertWorkspaceEditAccess(workspaceId, userId);
 
   const existing = await findNodeById(nodeId);
   if (!existing || existing.workspaceId.toString() !== workspaceId) {

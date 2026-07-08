@@ -1,79 +1,105 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
-export const useSocket = (workspaceId) => {
+let socketInstance = null;
+const joinedWorkspaces = new Set();
+
+const ensureSocket = () => {
+  if (socketInstance) {
+    return socketInstance;
+  }
+
+  const token = localStorage.getItem("ligma_token");
+
+  socketInstance = io(socketUrl, {
+    auth: { token },
+    autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+  });
+
+  socketInstance.on("connect", () => {
+    const workspaceIds = Array.from(joinedWorkspaces);
+    for (const workspaceId of workspaceIds) {
+      socketInstance.emit("workspace:join", { workspaceId });
+    }
+  });
+
+  return socketInstance;
+};
+
+export const useSocket = ({ workspaceId, autoJoin = true } = {}) => {
   const socketRef = useRef(null);
+  const [status, setStatus] = useState("connecting");
 
   useEffect(() => {
-    // Connect to the socket server
-    const token = localStorage.getItem("ligma_token");
-    
-    socketRef.current = io(socketUrl, {
-      auth: {
-        token,
-      },
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    socketRef.current = ensureSocket();
 
-    socketRef.current.on("connect", () => {
-      console.log("⚡ Connected to real-time server");
-      
-      // If workspace context exists, join workspace room
-      if (workspaceId) {
-        socketRef.current.emit("JOIN_WORKSPACE", { workspaceId });
-      }
-    });
+    const socket = socketRef.current;
 
-    socketRef.current.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error.message);
-    });
+    const handleConnect = () => setStatus("connected");
+    const handleReconnectAttempt = () => setStatus("reconnecting");
+    const handleConnectError = () => setStatus("offline");
+    const handleDisconnect = () => setStatus("offline");
 
-    socketRef.current.on("disconnect", (reason) => {
-      console.log("⚡ Disconnected from real-time server:", reason);
-    });
+    if (socket.connected) {
+      setStatus("connected");
+    }
+
+    socket.on("connect", handleConnect);
+    socket.io.on("reconnect_attempt", handleReconnectAttempt);
+    socket.on("connect_error", handleConnectError);
+    socket.on("disconnect", handleDisconnect);
+
+    if (workspaceId && autoJoin) {
+      joinedWorkspaces.add(workspaceId);
+      socket.emit("workspace:join", { workspaceId });
+    }
 
     return () => {
-      if (socketRef.current) {
-        if (workspaceId) {
-          socketRef.current.emit("LEAVE_WORKSPACE", { workspaceId });
-        }
-        socketRef.current.disconnect();
+      socket.off("connect", handleConnect);
+      socket.io.off("reconnect_attempt", handleReconnectAttempt);
+      socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
+
+      if (workspaceId && autoJoin) {
+        joinedWorkspaces.delete(workspaceId);
+        socket.emit("workspace:leave", { workspaceId });
       }
     };
-  }, [workspaceId]);
+  }, [workspaceId, autoJoin]);
 
   const emit = (event, data) => {
-    if (socketRef.current && socketRef.current.connected) {
+    if (socketRef.current?.connected) {
       socketRef.current.emit(event, data);
-    } else {
-      console.warn(`⚠️ Cannot emit event: ${event}. Socket not connected.`);
     }
   };
 
   const on = (event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.on(event, callback);
-    }
+    socketRef.current?.on(event, callback);
   };
 
   const off = (event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.off(event, callback);
-    }
+    socketRef.current?.off(event, callback);
   };
 
-  return {
-    socket: socketRef.current,
-    emit,
-    on,
-    off,
-    isConnected: socketRef.current?.connected || false,
-  };
+  const api = useMemo(
+    () => ({
+      socket: socketRef.current,
+      emit,
+      on,
+      off,
+      status,
+      isConnected: status === "connected",
+    }),
+    [status]
+  );
+
+  return api;
 };
 
 export default useSocket;

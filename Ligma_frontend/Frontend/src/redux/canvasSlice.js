@@ -78,6 +78,22 @@ const canvasSlice = createSlice({
         };
       }
     },
+    upsertNodeLocally(state, action) {
+      const node = action.payload;
+      if (!node?.id) return;
+      state.nodes[node.id] = {
+        ...(state.nodes[node.id] || {}),
+        ...node,
+      };
+    },
+    removeNodeLocally(state, action) {
+      const nodeId = action.payload;
+      if (!nodeId) return;
+      delete state.nodes[nodeId];
+    },
+    setCanvasConnectionError(state, action) {
+      state.error = action.payload || null;
+    },
     clearCanvas(state) {
       state.nodes = {};
       state.error = null;
@@ -130,6 +146,13 @@ const canvasSlice = createSlice({
   },
 });
 
-export const { updateNodePositionLocally, updateNodeDataLocally, clearCanvas } = canvasSlice.actions;
+export const {
+  updateNodePositionLocally,
+  updateNodeDataLocally,
+  upsertNodeLocally,
+  removeNodeLocally,
+  setCanvasConnectionError,
+  clearCanvas,
+} = canvasSlice.actions;
 
 export default canvasSlice.reducer;

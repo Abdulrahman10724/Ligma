@@ -63,6 +63,37 @@ const assertWorkspaceAccess = async (workspaceId, userId) => {
   return sanitizeWorkspace(workspace);
 };
 
+// Asserts the requesting user can modify workspace resources (owner, Lead, Contributor)
+const assertWorkspaceEditAccess = async (workspaceId, userId) => {
+  const workspace = await findWorkspaceById(workspaceId);
+
+  if (!workspace) {
+    const error = new Error("Workspace not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (workspace.ownerId.toString() === userId) {
+    return sanitizeWorkspace(workspace);
+  }
+
+  const member = await findWorkspaceMember(workspaceId, userId);
+
+  if (!member) {
+    const error = new Error("Access denied");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (member.role === "Viewer") {
+    const error = new Error("Viewer role has read-only access");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return sanitizeWorkspace(workspace);
+};
+
 const listWorkspaceMembers = async (workspaceId, requesterId) => {
   await ensureWorkspaceMemberIndexes();
   await assertWorkspaceAccess(workspaceId, requesterId);
@@ -162,6 +193,7 @@ const listPendingInvitations = async (workspaceId, requesterId) => {
 export {
   assertWorkspaceLead,
   assertWorkspaceAccess,
+  assertWorkspaceEditAccess,
   listWorkspaceMembers,
   changeMemberRole,
   removeWorkspaceMember,
@@ -171,6 +203,7 @@ export {
 export default {
   assertWorkspaceLead,
   assertWorkspaceAccess,
+  assertWorkspaceEditAccess,
   listWorkspaceMembers,
   changeMemberRole,
   removeWorkspaceMember,

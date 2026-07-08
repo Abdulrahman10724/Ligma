@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Arrow, Circle, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
+import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
 import { HexColorPicker } from "react-colorful";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
+import useSocket from "../hooks/useSocket";
 
 import {
   fetchCanvasNodes,
@@ -13,6 +14,8 @@ import {
   deleteCanvasNode,
   updateNodePositionLocally,
   updateNodeDataLocally,
+  upsertNodeLocally,
+  removeNodeLocally,
   clearCanvas,
 } from "../redux/canvasSlice";
 import CanvasToolbar from "../components/canvas/CanvasToolbar";
@@ -74,6 +77,9 @@ export default function CanvasPage() {
   const { id: workspaceId } = useParams();
   const dispatch = useDispatch();
   const { nodes: nodesMap, loading } = useSelector((state) => state.canvas);
+  const { activeWorkspace } = useSelector((state) => state.workspace);
+  const { user: currentUser } = useSelector((state) => state.auth);
+  const { emit, on, off, status } = useSocket({ workspaceId, autoJoin: false });
 
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
@@ -81,7 +87,7 @@ export default function CanvasPage() {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
   const [activeTool, setActiveTool] = useState("select");
-  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState([]);
   const [editingNodeId, setEditingNodeId] = useState(null);
   const [editingValue, setEditingValue] = useState("");
   const [arrowDraft, setArrowDraft] = useState(null);
@@ -91,6 +97,31 @@ export default function CanvasPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const colorTimersRef = useRef({});
   const clipboardNodeRef = useRef(null);
+  const dragEmitRef = useRef(0);
+  const resizeEmitRef = useRef(0);
+  const cursorEmitRef = useRef(0);
+  const [remoteCursors, setRemoteCursors] = useState({});
+
+  const emitCursorPosition = useCallback(
+    (point) => {
+      if (!workspaceId || !emit || !point) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - cursorEmitRef.current < 120) {
+        return;
+      }
+
+      cursorEmitRef.current = now;
+      emit("workspace:cursor", {
+        workspaceId,
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+      });
+    },
+    [emit, workspaceId]
+  );
 
   // Detect dark mode
   useEffect(() => {
@@ -123,7 +154,9 @@ export default function CanvasPage() {
   }, [dispatch, workspaceId]);
 
   const nodes = Object.values(nodesMap);
+  const selectedNodeId = selectedNodeIds[0] || null;
   const selectedNode = selectedNodeId ? nodesMap[selectedNodeId] : null;
+  const canEditCanvas = activeWorkspace?.currentUserRole !== "Viewer";
   const gridLines = buildGridLines(
     dimensions.width,
     dimensions.height,
@@ -231,6 +264,168 @@ export default function CanvasPage() {
     }
   }, [selectedNode, selectedNodeId]);
 
+  useEffect(() => {
+    const handleNodeCreated = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.node) {
+        dispatch(upsertNodeLocally(payload.node));
+      }
+    };
+
+    const handleNodeUpdated = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.node) {
+        dispatch(upsertNodeLocally(payload.node));
+      }
+    };
+
+    const handleNodeDeleted = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.nodeId) {
+        dispatch(removeNodeLocally(payload.nodeId));
+      }
+    };
+
+    const handleNodeDrag = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.nodeId && typeof payload?.x === "number" && typeof payload?.y === "number") {
+        dispatch(updateNodePositionLocally({ nodeId: payload.nodeId, x: payload.x, y: payload.y }));
+      }
+    };
+
+    const handleNodeResize = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.nodeId) {
+        dispatch(updateNodePositionLocally({ nodeId: payload.nodeId, x: payload.x, y: payload.y }));
+        dispatch(updateNodeDataLocally({ nodeId: payload.nodeId, patch: payload.data || {} }));
+      }
+    };
+
+    const handleCursor = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.userId === currentUser?.id) return;
+      if (typeof payload?.x !== "number" || typeof payload?.y !== "number") return;
+
+      setRemoteCursors((previous) => ({
+        ...previous,
+        [payload.userId]: payload,
+      }));
+    };
+
+    on("canvas:node-created", handleNodeCreated);
+    on("canvas:node-updated", handleNodeUpdated);
+    on("canvas:node-deleted", handleNodeDeleted);
+    on("canvas:drag", handleNodeDrag);
+    on("canvas:resize", handleNodeResize);
+    on("workspace:cursor", handleCursor);
+
+    return () => {
+      off("canvas:node-created", handleNodeCreated);
+      off("canvas:node-updated", handleNodeUpdated);
+      off("canvas:node-deleted", handleNodeDeleted);
+      off("canvas:drag", handleNodeDrag);
+      off("canvas:resize", handleNodeResize);
+      off("workspace:cursor", handleCursor);
+    };
+  }, [currentUser?.id, dispatch, off, on, workspaceId]);
+
+  useEffect(() => {
+    const handleShortcuts = async (event) => {
+      const target = event.target;
+      const isTextEditingTarget =
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLInputElement ||
+        target?.isContentEditable ||
+        Boolean(editingNodeId);
+
+      if (isTextEditingTarget) {
+        return;
+      }
+
+      const isMeta = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (key === "escape") {
+        event.preventDefault();
+        setSelectedNodeIds([]);
+        return;
+      }
+
+      if (!canEditCanvas) {
+        return;
+      }
+
+      if (key === "delete" || key === "backspace") {
+        if (!selectedNodeIds.length) return;
+        event.preventDefault();
+        const ids = [...selectedNodeIds];
+        for (const nodeId of ids) {
+          const result = await dispatch(deleteCanvasNode({ workspaceId, nodeId }));
+          if (deleteCanvasNode.rejected.match(result)) {
+            toast.error(result.payload || "Failed to delete node");
+            break;
+          }
+        }
+        setSelectedNodeIds([]);
+        return;
+      }
+
+      if (isMeta && key === "a") {
+        event.preventDefault();
+        setSelectedNodeIds(nodes.map((node) => node.id));
+        return;
+      }
+
+      if (isMeta && key === "c") {
+        if (!selectedNodeId) return;
+        event.preventDefault();
+        clipboardNodeRef.current = nodesMap[selectedNodeId] || null;
+        return;
+      }
+
+      const createDuplicate = async () => {
+        const source = clipboardNodeRef.current;
+        if (!source) return;
+
+        const payload = {
+          type: source.type,
+          x: Math.round((source.x || 0) + 24),
+          y: Math.round((source.y || 0) + 24),
+          data: { ...(source.data || {}) },
+        };
+
+        const result = await dispatch(createCanvasNode({ workspaceId, payload }));
+        if (createCanvasNode.rejected.match(result)) {
+          toast.error(result.payload || "Failed to duplicate node");
+        }
+      };
+
+      if (isMeta && key === "v") {
+        event.preventDefault();
+        await createDuplicate();
+        return;
+      }
+
+      if (isMeta && key === "d") {
+        if (!selectedNodeId) return;
+        event.preventDefault();
+        clipboardNodeRef.current = nodesMap[selectedNodeId] || null;
+        await createDuplicate();
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcuts);
+    return () => window.removeEventListener("keydown", handleShortcuts);
+  }, [
+    canEditCanvas,
+    dispatch,
+    editingNodeId,
+    nodes,
+    nodesMap,
+    selectedNodeId,
+    selectedNodeIds,
+    workspaceId,
+  ]);
+
   // Wheel zoom
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();
@@ -301,7 +496,7 @@ export default function CanvasPage() {
 
       return DEFAULT_NODE_DATA[tool] || {};
     },
-    []
+    [activeColor]
   );
 
   const commitCreationDraft = useCallback(
@@ -335,6 +530,10 @@ export default function CanvasPage() {
 
   const handleStagePointerDown = useCallback(
     (e) => {
+      if (!canEditCanvas) {
+        return;
+      }
+
       if (e.target !== e.target.getStage()) {
         return;
       }
@@ -343,7 +542,7 @@ export default function CanvasPage() {
       if (!point) return;
 
       if (activeTool === "arrow") {
-        setSelectedNodeId(null);
+        setSelectedNodeIds([]);
         setEditingNodeId(null);
         setCreationDraft(null);
         setArrowDraft({ start: point, end: point });
@@ -351,22 +550,24 @@ export default function CanvasPage() {
       }
 
       if (activeTool === "select") {
-        setSelectedNodeId(null);
+        setSelectedNodeIds([]);
         setEditingNodeId(null);
         return;
       }
 
-      setSelectedNodeId(null);
+      setSelectedNodeIds([]);
       setEditingNodeId(null);
       setArrowDraft(null);
       setCreationDraft({ tool: activeTool, start: point, current: point });
     },
-    [activeTool, getCanvasPoint]
+    [activeTool, canEditCanvas, getCanvasPoint]
   );
 
   const handleStagePointerMove = useCallback(() => {
     const point = getCanvasPoint();
     if (!point) return;
+
+    emitCursorPosition(point);
 
     if (arrowDraft && activeTool === "arrow") {
       setArrowDraft((current) => (current ? { ...current, end: point } : current));
@@ -375,9 +576,13 @@ export default function CanvasPage() {
     if (creationDraft) {
       setCreationDraft((current) => (current ? { ...current, current: point } : current));
     }
-  }, [activeTool, arrowDraft, creationDraft, getCanvasPoint]);
+  }, [activeTool, arrowDraft, creationDraft, emitCursorPosition, getCanvasPoint]);
 
   const handleStagePointerUp = useCallback(async () => {
+    if (!canEditCanvas) {
+      return;
+    }
+
     if (arrowDraft && activeTool === "arrow") {
       const dx = arrowDraft.end.x - arrowDraft.start.x;
       const dy = arrowDraft.end.y - arrowDraft.start.y;
@@ -413,11 +618,16 @@ export default function CanvasPage() {
       await commitCreationDraft(draft);
       setActiveTool("select");
     }
-  }, [activeTool, arrowDraft, commitCreationDraft, creationDraft, dispatch, workspaceId]);
+  }, [activeTool, arrowDraft, canEditCanvas, commitCreationDraft, creationDraft, dispatch, workspaceId]);
 
   // Stage click → place node (if tool !== select)
   const handleStageClick = useCallback(
     (e) => {
+      if (!canEditCanvas) {
+        setSelectedNodeIds([]);
+        return;
+      }
+
       // Only fire on direct stage click (not on child shapes)
       if (e.target !== e.target.getStage()) {
         return;
@@ -428,32 +638,48 @@ export default function CanvasPage() {
       }
 
       if (activeTool === "select") {
-        setSelectedNodeId(null);
+        setSelectedNodeIds([]);
         setEditingNodeId(null);
         return;
       }
     },
-    [activeTool]
+    [activeTool, canEditCanvas]
   );
 
   const handleNodeDragEnd = useCallback(
     async (nodeId, x, y) => {
-      // Optimistic local update already happened via onDragEnd in the Konva node
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
+      emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
       await dispatch(updateCanvasNode({ workspaceId, nodeId, payload: { x: Math.round(x), y: Math.round(y) } }));
     },
-    [dispatch, workspaceId]
+    [dispatch, emit, workspaceId]
   );
 
   const handleNodeDragMove = useCallback(
     (nodeId, x, y) => {
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
+
+      const now = Date.now();
+      if (now - dragEmitRef.current > 80) {
+        dragEmitRef.current = now;
+        emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
+      }
     },
-    [dispatch]
+    [dispatch, emit, workspaceId]
   );
 
-  const handleNodeClick = useCallback((nodeId) => {
-    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+  const handleNodeClick = useCallback((nodeId, isAdditiveSelection) => {
+    setSelectedNodeIds((previous) => {
+      if (isAdditiveSelection) {
+        if (previous.includes(nodeId)) {
+          return previous.filter((id) => id !== nodeId);
+        }
+
+        return [...previous, nodeId];
+      }
+
+      return previous.length === 1 && previous[0] === nodeId ? [] : [nodeId];
+    });
   }, []);
 
   const handleNodeDoubleClick = useCallback(
@@ -461,7 +687,7 @@ export default function CanvasPage() {
       const node = nodesMap[nodeId];
       if (!node) return;
 
-      setSelectedNodeId(nodeId);
+      setSelectedNodeIds([nodeId]);
       setEditingNodeId(nodeId);
       setEditingValue(getNodeTextValue(node));
     },
@@ -505,11 +731,19 @@ export default function CanvasPage() {
         })
       );
 
+      emit("canvas:resize", {
+        workspaceId,
+        nodeId,
+        x: Math.round(target.x()),
+        y: Math.round(target.y()),
+        data: nextData,
+      });
+
       if (updateCanvasNode.rejected.match(result)) {
         toast.error(result.payload || "Failed to update node");
       }
     },
-    [dispatch, nodesMap, workspaceId]
+    [dispatch, emit, nodesMap, workspaceId]
   );
 
 const latestNodesRef = useRef(nodesMap);
@@ -614,20 +848,23 @@ const handleInspectorChange = useCallback(
     : null;
 
   const handleDeleteSelected = useCallback(async () => {
-    if (!selectedNodeId) return;
-    const result = await dispatch(deleteCanvasNode({ workspaceId, nodeId: selectedNodeId }));
-    if (deleteCanvasNode.fulfilled.match(result)) {
-      setSelectedNodeId(null);
-    } else {
-      toast.error(result.payload || "Failed to delete node");
+    if (!selectedNodeIds.length) return;
+    for (const nodeId of selectedNodeIds) {
+      const result = await dispatch(deleteCanvasNode({ workspaceId, nodeId }));
+      if (deleteCanvasNode.rejected.match(result)) {
+        toast.error(result.payload || "Failed to delete node");
+        return;
+      }
     }
-  }, [dispatch, selectedNodeId, workspaceId]);
+
+    setSelectedNodeIds([]);
+  }, [dispatch, selectedNodeIds, workspaceId]);
 
   const renderNode = (node) => {
     const commonProps = {
       key: node.id,
       node,
-      isSelected: node.id === selectedNodeId,
+      isSelected: selectedNodeIds.includes(node.id),
       onDragEnd: handleNodeDragEnd,
       onClick: handleNodeClick,
     };
@@ -655,7 +892,7 @@ const handleInspectorChange = useCallback(
       )}
 
       {/* Delete button for selected node */}
-      {selectedNodeId && (
+      {selectedNodeIds.length > 0 && canEditCanvas && (
         <div className="absolute top-4 right-4 z-20">
           <button
             onClick={handleDeleteSelected}
@@ -707,6 +944,29 @@ const handleInspectorChange = useCallback(
               strokeWidth={1 / viewport.scale}
               listening={false}
             />
+          ))}
+        </Layer>
+        {/* Remote cursors */}
+        <Layer listening={false}>
+          {Object.values(remoteCursors).map((cursor) => (
+            <Group key={`cursor-group-${cursor.userId}`} listening={false}>
+              <Circle
+                x={cursor.x}
+                y={cursor.y}
+                radius={7}
+                fill="#2563EB"
+                opacity={0.8}
+              />
+              <Text
+                x={cursor.x + 12}
+                y={cursor.y - 10}
+                text={cursor.name || "Guest"}
+                fontSize={12}
+                fill="#ffffff"
+                fontStyle="bold"
+                listening={false}
+              />
+            </Group>
           ))}
         </Layer>
         {/* Nodes layer */}
@@ -799,7 +1059,7 @@ const handleInspectorChange = useCallback(
               <p className="text-xs text-[color:var(--text-secondary)] capitalize">{selectedNode.type}</p>
             </div>
             <button
-              onClick={() => setSelectedNodeId(null)}
+              onClick={() => setSelectedNodeIds([])}
               className="text-xs font-medium text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]"
             >
               Clear

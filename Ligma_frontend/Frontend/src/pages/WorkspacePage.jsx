@@ -1,4 +1,4 @@
-import  { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { LayoutDashboard, Milestone, MessageSquare, Users, History, Settings, LogOut } from "lucide-react";
@@ -7,17 +7,32 @@ import { fetchWorkspaceById } from "../redux/workspaceSlice";
 import AccountMenu from "../components/layout/AccountMenu";
 import LogoutButton from "../components/layout/LogoutButton";
 import InvitationInboxMenu from "../components/layout/InvitationInboxMenu";
+import useSocket from "../hooks/useSocket";
 
 export default function WorkspacePage() {
   const { id } = useParams();
   const dispatch = useDispatch();
   const { activeWorkspace } = useSelector((state) => state.workspace);
+  const { status, on, off } = useSocket({ workspaceId: id, autoJoin: true });
+  const [presenceUsers, setPresenceUsers] = useState([]);
 
   useEffect(() => {
     if (id) {
       dispatch(fetchWorkspaceById(id));
     }
   }, [dispatch, id]);
+
+  useEffect(() => {
+    const handlePresence = (payload) => {
+      if (payload?.workspaceId !== id) return;
+      setPresenceUsers(payload?.users || []);
+    };
+
+    on("workspace:presence", handlePresence);
+    return () => {
+      off("workspace:presence", handlePresence);
+    };
+  }, [id, on, off]);
 
   const navigation = [
     { name: "Canvas", href: `/workspace/${id}/canvas`, icon: LayoutDashboard },
@@ -77,6 +92,31 @@ export default function WorkspacePage() {
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--text-secondary)]">Workspace</p>
               <h1 className="text-sm font-semibold text-[color:var(--text-primary)]">{activeWorkspace?.title || "Loading workspace..."}</h1>
+            </div>
+            <div className="ml-3 hidden items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-2.5 py-1 md:flex">
+              <span className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "reconnecting" || status === "connecting" ? "bg-amber-500" : "bg-zinc-400"}`} />
+              <span className="text-xs text-[color:var(--text-secondary)] capitalize">{status}</span>
+            </div>
+            <div className="hidden items-center -space-x-2 md:flex">
+              {presenceUsers.slice(0, 6).map((user) => (
+                <span
+                  key={user.userId}
+                  title={user.name || user.email}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--bg-surface)] bg-[color:var(--accent)] text-[10px] font-semibold text-white"
+                >
+                  {(user.name || user.email || "?")
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase())
+                    .join("") || "?"}
+                </span>
+              ))}
+              {presenceUsers.length > 6 ? (
+                <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-[color:var(--bg-surface)] bg-[color:var(--bg-primary)] px-1 text-[10px] font-semibold text-[color:var(--text-secondary)]">
+                  +{presenceUsers.length - 6}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-3">

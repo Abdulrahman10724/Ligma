@@ -46,7 +46,7 @@ const startServer = async () => {
   // Global Rate Limiter
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 5000,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -82,14 +82,7 @@ const startServer = async () => {
   // 4. Initialize Socket.IO
   initSocket(server);
 
-  //temp
-  app.use((req,res,next)=>{
-
-console.log(req.method,req.url)
-
-next()
-
-})
+  
   // 5. Global Error Handling Middleware (must be registered last)
   app.use(errorHandler);
 
