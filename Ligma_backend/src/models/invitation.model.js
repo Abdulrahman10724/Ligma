@@ -6,10 +6,26 @@ const COLLECTION_NAME = "invitations";
 
 const getInvitationsCollection = () => getCollection(COLLECTION_NAME);
 
+let invitationIndexesReady = false;
+let invitationIndexesPromise = null;
+
 const ensureInvitationIndexes = async () => {
-  await getInvitationsCollection().createIndex({ tokenHash: 1 }, { unique: true });
-  await getInvitationsCollection().createIndex({ workspaceId: 1, email: 1, status: 1 });
-  await getInvitationsCollection().createIndex({ workspaceId: 1, createdAt: -1 });
+  if (invitationIndexesReady) {
+    return;
+  }
+
+  if (!invitationIndexesPromise) {
+    invitationIndexesPromise = (async () => {
+      await getInvitationsCollection().createIndex({ tokenHash: 1 }, { unique: true });
+      await getInvitationsCollection().createIndex({ workspaceId: 1, email: 1, status: 1 });
+      await getInvitationsCollection().createIndex({ workspaceId: 1, createdAt: -1 });
+      invitationIndexesReady = true;
+    })().finally(() => {
+      invitationIndexesPromise = null;
+    });
+  }
+
+  await invitationIndexesPromise;
 };
 
 const sanitizeInvitation = (invitation) => {
@@ -47,8 +63,15 @@ const findInvitationByWorkspaceAndEmail = async (workspaceId, email) =>
     status: "Pending",
   });
 
-const listInvitationsByWorkspace = async (workspaceId) =>
-  getInvitationsCollection().find({ workspaceId: new ObjectId(workspaceId) }).sort({ createdAt: -1 }).toArray();
+const listInvitationsByWorkspace = async (workspaceId, status) => {
+  const query = { workspaceId: new ObjectId(workspaceId) };
+
+  if (status) {
+    query.status = status;
+  }
+
+  return getInvitationsCollection().find(query).sort({ createdAt: -1 }).toArray();
+};
 
 const updateInvitationByTokenHash = async (tokenHash, updateDocument) =>
   getInvitationsCollection().findOneAndUpdate({ tokenHash }, { $set: updateDocument }, { returnDocument: "after" });

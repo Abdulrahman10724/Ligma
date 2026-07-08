@@ -64,7 +64,6 @@ const buildPublicInvitation = (invitation, workspace) => ({
 const createWorkspaceInvitation = async ({ workspaceId, inviterId, email, role }) => {
   await ensureInvitationIndexes();
   await ensureWorkspaceMemberIndexes();
-  await expirePendingInvitations();
 
   const workspace = await assertWorkspaceOwner(workspaceId, inviterId);
   const normalizedEmail = email.trim().toLowerCase();

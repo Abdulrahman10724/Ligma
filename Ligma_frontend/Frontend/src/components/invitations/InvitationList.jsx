@@ -62,3 +62,23 @@ export default function InvitationList({ invitations, workspaceId, onRefresh }) 
     </div>
   );
 }
+
+export function PendingInvitationList({ invitations, workspaceId, onRefresh }) {
+  const pendingInvitations = invitations.filter((invitation) => invitation.status === "Pending");
+
+  return <InvitationList invitations={pendingInvitations} workspaceId={workspaceId} onRefresh={onRefresh} />;
+}
+
+export function InvitationHistoryList({ invitations }) {
+  const history = invitations.filter((invitation) => invitation.status !== "Pending");
+
+  if (!history.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--bg-surface)] p-6 text-sm text-[color:var(--text-secondary)]">
+        No invitation history yet.
+      </div>
+    );
+  }
+
+  return <InvitationList invitations={history} workspaceId={null} onRefresh={null} />;
+}
