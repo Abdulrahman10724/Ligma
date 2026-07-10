@@ -13,7 +13,7 @@ const HEIGHT = 160;
 const PADDING = 12;
 const CORNER_RADIUS = 10;
 
-export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, onClick, onDoubleClick, onTransformEnd }) {
+export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, onClick, onDoubleClick, onTransform,onTransformEnd }) {
   const { x, y, data = {} } = node;
   const color = data.fill || STICKY_COLORS[data.color] || STICKY_COLORS.yellow;
   const text = data.text || "Double-click to edit";
@@ -27,12 +27,20 @@ export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, on
       x={x}
       y={y}
       draggable
-      onDragMove={(e) => onDragMove(node.id, e.target.x(), e.target.y())}
-      onDragEnd={(e) => onDragEnd(node.id, e.target.x(), e.target.y())}
+      onDragStart={(e) => { e.cancelBubble = true; }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove(node.id, e.target.x(), e.target.y());
+      }}
+      onDragEnd={(e) => {
+        e.cancelBubble = true;
+        onDragEnd(node.id, e.target.x(), e.target.y());
+      }}
       onClick={() => onClick(node.id)}
       onDblClick={() => onDoubleClick(node.id)}
-      onTransformEnd={(e) => onTransformEnd(node.id, e.target)}
-    >
+      onTransform={(e) => onTransform(node.id, e.target)}
+      onTransformEnd={(e) => onTransformEnd(node.id, e.target)}   
+       >
       {/* Shadow */}
       <Rect
         x={3}

@@ -11,10 +11,11 @@ export default function TextNode({
   onDragMove,
   onClick,
   onDoubleClick,
+  onTransform,
   onTransformEnd,
 }) {
   const { x, y, data = {} } = node;
-  const text = data.text || "Text block";
+  const text = data.text ?? "Text block";
   const fontSize = data.fontSize || 16;
   const color = data.color || "#18181B";
   const width = data.width || WIDTH;
@@ -26,13 +27,20 @@ export default function TextNode({
       x={x}
       y={y}
       draggable
-      onDragMove={(e) => onDragMove(node.id, e.target.x(), e.target.y())}
-      onDragEnd={(e) => onDragEnd(node.id, e.target.x(), e.target.y())}
+      onDragStart={(e) => { e.cancelBubble = true; }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove(node.id, e.target.x(), e.target.y());
+      }}
+      onDragEnd={(e) => {
+        e.cancelBubble = true;
+        onDragEnd(node.id, e.target.x(), e.target.y());
+      }}
       onClick={() => onClick(node.id)}
       onDblClick={() => onDoubleClick(node.id)}
-      onTransformEnd={(e) => onTransformEnd(node.id, e.target)}
+      onTransform={(e) => onTransform?.(node.id, e.target)}
+      onTransformEnd={(e) => onTransformEnd?.(node.id, e.target)}
     >
-      {/* Selection highlight */}
       {isSelected && (
         <Rect
           x={-4}

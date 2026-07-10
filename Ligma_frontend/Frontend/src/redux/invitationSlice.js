@@ -100,6 +100,16 @@ const updateInvitationInList = (state, invitation) => {
   }
 };
 
+const isSameInbox = (a, b) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].id !== b[i].id || a[i].status !== b[i].status) {
+      return false;
+    }
+  }
+  return true;
+};
+
 const invitationSlice = createSlice({
   name: "invitations",
   initialState,
@@ -164,7 +174,10 @@ const invitationSlice = createSlice({
       })
       .addCase(fetchMyPendingInvitations.fulfilled, (state, action) => {
         state.inboxLoading = false;
-        state.inbox = action.payload?.data?.invitations || [];
+        const nextInbox = action.payload?.data?.invitations || [];
+        if (!isSameInbox(state.inbox, nextInbox)) {
+          state.inbox = nextInbox;
+        }
       })
       .addCase(fetchMyPendingInvitations.rejected, (state, action) => {
         state.inboxLoading = false;

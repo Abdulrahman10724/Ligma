@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
+import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer, Path } from "react-konva";
 import { HexColorPicker } from "react-colorful";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
@@ -55,6 +55,28 @@ const NODE_TEXT_KEYS = {
   arrow: "label",
 };
 
+const SNAP_ANGLE_THRESHOLD = 6; // degrees
+
+function snapArrowVector(dx, dy, shiftHeld) {
+  const distance = Math.hypot(dx, dy);
+  if (distance < 4) return { dx, dy };
+
+  const degrees = (Math.atan2(dy, dx) * 180) / Math.PI;
+  // Shift dabaya ho toh 45° increments par snap karo, warna sirf horizontal/vertical ke paas
+  const snapAngles = shiftHeld
+    ? [-180, -135, -90, -45, 0, 45, 90, 135, 180]
+    : [-180, -90, 0, 90, 180];
+
+  for (const snapDeg of snapAngles) {
+    if (Math.abs(degrees - snapDeg) <= SNAP_ANGLE_THRESHOLD) {
+      const rad = (snapDeg * Math.PI) / 180;
+      return { dx: Math.cos(rad) * distance, dy: Math.sin(rad) * distance };
+    }
+  }
+  return { dx, dy };
+}
+
+
 function buildGridLines(stageWidth, stageHeight, scale, offsetX, offsetY) {
   const lines = [];
 
@@ -79,7 +101,8 @@ export default function CanvasPage() {
   const { nodes: nodesMap, loading } = useSelector((state) => state.canvas);
   const { activeWorkspace } = useSelector((state) => state.workspace);
   const { user: currentUser } = useSelector((state) => state.auth);
-  const { emit, on, off, status } = useSocket({ workspaceId, autoJoin: false });
+  // status
+  const { emit, on, off } = useSocket({ workspaceId, autoJoin: false });
 
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
@@ -92,14 +115,19 @@ export default function CanvasPage() {
   const [editingValue, setEditingValue] = useState("");
   const [arrowDraft, setArrowDraft] = useState(null);
   const [creationDraft, setCreationDraft] = useState(null);
+  const [remoteDraft, setRemoteDraft] = useState(null);
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [activeColor, setActiveColor] = useState("#FEF3C7");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const colorTimersRef = useRef({});
   const clipboardNodeRef = useRef(null);
   const dragEmitRef = useRef(0);
-  const resizeEmitRef = useRef(0);
+  // const resizeEmitRef = useRef(0);
   const cursorEmitRef = useRef(0);
+  const textEmitTimerRef = useRef(null);
+  const pendingTextValueRef = useRef(null);
+  const dragInFlightRef = useRef({});
+  const dragPendingRef = useRef({});
   const [remoteCursors, setRemoteCursors] = useState({});
 
   const emitCursorPosition = useCallback(
@@ -126,6 +154,7 @@ export default function CanvasPage() {
   // Detect dark mode
   useEffect(() => {
     const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDarkMode(mql.matches || document.documentElement.classList.contains("dark"));
     const handler = (e) => setIsDarkMode(e.matches);
     mql.addEventListener("change", handler);
@@ -224,7 +253,7 @@ export default function CanvasPage() {
 
   const selectedNodeBounds = useMemo(() => getNodeBounds(selectedNode), [getNodeBounds, selectedNode]);
 
-  const selectedNodeType = selectedNode?.type || null;
+  // const selectedNodeType = selectedNode?.type || null;
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -293,11 +322,31 @@ export default function CanvasPage() {
       }
     };
 
+    const handleNodeText = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.nodeId && typeof payload?.value === "string") {
+        const node = latestNodesRef.current[payload.nodeId];
+        if (!node) return;
+        const textKey = NODE_TEXT_KEYS[node.type];
+        dispatch(updateNodeDataLocally({ nodeId: payload.nodeId, patch: { [textKey]: payload.value } }));
+      }
+    };
     const handleNodeResize = (payload) => {
       if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
       if (payload?.nodeId) {
         dispatch(updateNodePositionLocally({ nodeId: payload.nodeId, x: payload.x, y: payload.y }));
         dispatch(updateNodeDataLocally({ nodeId: payload.nodeId, patch: payload.data || {} }));
+      }
+    };
+
+    const handleRemoteDraft = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      setRemoteDraft(payload?.draft || null);
+    };
+    const handleNodeData = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.nodeId && payload?.patch) {
+        dispatch(updateNodeDataLocally({ nodeId: payload.nodeId, patch: payload.patch }));
       }
     };
 
@@ -316,15 +365,21 @@ export default function CanvasPage() {
     on("canvas:node-deleted", handleNodeDeleted);
     on("canvas:drag", handleNodeDrag);
     on("canvas:resize", handleNodeResize);
+    on("canvas:text", handleNodeText);
+    on("canvas:draft", handleRemoteDraft);
+    on("canvas:data", handleNodeData);
     on("workspace:cursor", handleCursor);
-
     return () => {
       off("canvas:node-created", handleNodeCreated);
       off("canvas:node-updated", handleNodeUpdated);
       off("canvas:node-deleted", handleNodeDeleted);
       off("canvas:drag", handleNodeDrag);
       off("canvas:resize", handleNodeResize);
+      off("canvas:text", handleNodeText);
+      off("canvas:draft", handleRemoteDraft);
+      off("canvas:data", handleNodeData);
       off("workspace:cursor", handleCursor);
+
     };
   }, [currentUser?.id, dispatch, off, on, workspaceId]);
 
@@ -529,7 +584,7 @@ export default function CanvasPage() {
   );
 
   const handleStagePointerDown = useCallback(
-    (e) => {
+    async (e) => {
       if (!canEditCanvas) {
         return;
       }
@@ -537,7 +592,9 @@ export default function CanvasPage() {
       if (e.target !== e.target.getStage()) {
         return;
       }
-
+      if (editingNodeId) {
+        await handleEditorSave();
+      }
       const point = getCanvasPoint();
       if (!point) return;
 
@@ -558,11 +615,13 @@ export default function CanvasPage() {
       setSelectedNodeIds([]);
       setEditingNodeId(null);
       setArrowDraft(null);
+      emit("canvas:draft", { workspaceId, draft: null });
       setCreationDraft({ tool: activeTool, start: point, current: point });
     },
     [activeTool, canEditCanvas, getCanvasPoint]
   );
 
+  const draftEmitTimerRef = useRef(null);
   const handleStagePointerMove = useCallback(() => {
     const point = getCanvasPoint();
     if (!point) return;
@@ -570,14 +629,35 @@ export default function CanvasPage() {
     emitCursorPosition(point);
 
     if (arrowDraft && activeTool === "arrow") {
-      setArrowDraft((current) => (current ? { ...current, end: point } : current));
+      const rawDx = point.x - arrowDraft.start.x;
+      const rawDy = point.y - arrowDraft.start.y;
+      const { dx: snappedDx, dy: snappedDy } = snapArrowVector(rawDx, rawDy, isShiftPressed);
+
+      setArrowDraft((current) =>
+        current
+          ? { ...current, end: { x: arrowDraft.start.x + snappedDx, y: arrowDraft.start.y + snappedDy } }
+          : current
+      );
+
+      if (!draftEmitTimerRef.current) {
+        draftEmitTimerRef.current = setTimeout(() => {
+          emit("canvas:draft", { workspaceId, draft: { type: "arrow", start: arrowDraft.start, end: point } });
+          draftEmitTimerRef.current = null;
+        }, 50);
+      }
     }
 
     if (creationDraft) {
       setCreationDraft((current) => (current ? { ...current, current: point } : current));
-    }
-  }, [activeTool, arrowDraft, creationDraft, emitCursorPosition, getCanvasPoint]);
 
+      if (!draftEmitTimerRef.current) {
+        draftEmitTimerRef.current = setTimeout(() => {
+          emit("canvas:draft", { workspaceId, draft: { ...creationDraft, current: point } });
+          draftEmitTimerRef.current = null;
+        }, 50);
+      }
+    }
+  }, [activeTool, arrowDraft, creationDraft, emitCursorPosition, getCanvasPoint, isShiftPressed, emit, workspaceId]);
   const handleStagePointerUp = useCallback(async () => {
     if (!canEditCanvas) {
       return;
@@ -615,6 +695,7 @@ export default function CanvasPage() {
     if (creationDraft) {
       const draft = creationDraft;
       setCreationDraft(null);
+      emit("canvas:draft", { workspaceId, draft: null });
       await commitCreationDraft(draft);
       setActiveTool("select");
     }
@@ -646,14 +727,44 @@ export default function CanvasPage() {
     [activeTool, canEditCanvas]
   );
 
-  const handleNodeDragEnd = useCallback(
+  const sendDragUpdate = useCallback(
     async (nodeId, x, y) => {
+      if (dragInFlightRef.current[nodeId]) {
+        // isi node ke liye ek request pehle se chal rahi hai — sirf latest value yaad rakho
+        dragPendingRef.current[nodeId] = { x, y };
+        return;
+      }
+
+      dragInFlightRef.current[nodeId] = true;
+
+      const result = await dispatch(
+        updateCanvasNode({ workspaceId, nodeId, payload: { x: Math.round(x), y: Math.round(y) } })
+      );
+
+      if (updateCanvasNode.rejected.match(result)) {
+        toast.error(result.payload || "Failed to update node");
+      }
+
+      dragInFlightRef.current[nodeId] = false;
+      // remember latest value if  node drag is started
+      const pending = dragPendingRef.current[nodeId];
+      if (pending) {
+        dragPendingRef.current[nodeId] = null;
+        sendDragUpdate(nodeId, pending.x, pending.y);
+      }
+    },
+    [dispatch, workspaceId]
+  );
+  const handleNodeDragEnd = useCallback(
+    (nodeId, x, y) => {
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
       emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
-      await dispatch(updateCanvasNode({ workspaceId, nodeId, payload: { x: Math.round(x), y: Math.round(y) } }));
+      sendDragUpdate(nodeId, x, y);
     },
-    [dispatch, emit, workspaceId]
+    [dispatch, emit, workspaceId, sendDragUpdate]
   );
+
+
 
   const handleNodeDragMove = useCallback(
     (nodeId, x, y) => {
@@ -668,19 +779,24 @@ export default function CanvasPage() {
     [dispatch, emit, workspaceId]
   );
 
-  const handleNodeClick = useCallback((nodeId, isAdditiveSelection) => {
-    setSelectedNodeIds((previous) => {
-      if (isAdditiveSelection) {
-        if (previous.includes(nodeId)) {
-          return previous.filter((id) => id !== nodeId);
-        }
-
-        return [...previous, nodeId];
+  const handleNodeClick = useCallback(
+    async (nodeId, isAdditiveSelection) => {
+      if (editingNodeId && editingNodeId !== nodeId) {
+        await handleEditorSave();
       }
 
-      return previous.length === 1 && previous[0] === nodeId ? [] : [nodeId];
-    });
-  }, []);
+      setSelectedNodeIds((previous) => {
+        if (isAdditiveSelection) {
+          if (previous.includes(nodeId)) {
+            return previous.filter((id) => id !== nodeId);
+          }
+
+          return [...previous, nodeId];
+        }
+
+        return previous.length === 1 && previous[0] === nodeId ? [] : [nodeId];
+      });
+    }, []);
 
   const handleNodeDoubleClick = useCallback(
     (nodeId) => {
@@ -692,6 +808,50 @@ export default function CanvasPage() {
       setEditingValue(getNodeTextValue(node));
     },
     [getNodeTextValue, nodesMap]
+  );
+
+
+  const transformEmitTimersRef = useRef({});
+
+  const handleNodeTransform = useCallback(
+    (nodeId, target) => {
+      const node = nodesMap[nodeId];
+      if (!node) return;
+
+      const data = node.data || {};
+      const scaleX = target.scaleX();
+      const scaleY = target.scaleY();
+
+      const nextData = { ...data };
+      if (node.type === "circle") {
+        const nextRadius = Math.max(24, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
+        nextData.radius = nextRadius;
+      } else {
+        const baseWidth = data.width || (node.type === "text" ? DEFAULT_NODE_DATA.text.width : DEFAULT_NODE_DATA.sticky.width);
+        const baseHeight = data.height || (node.type === "text" ? DEFAULT_NODE_DATA.text.height : DEFAULT_NODE_DATA.sticky.height);
+        nextData.width = Math.max(48, Math.round(baseWidth * scaleX));
+        nextData.height = Math.max(32, Math.round(baseHeight * scaleY));
+      }
+
+      // Local live UI update — sync position AND size so the controlled Group
+      // prop doesn't fight with Konva's internal transform on left/top anchors.
+      dispatch(updateNodePositionLocally({ nodeId, x: target.x(), y: target.y() }));
+      dispatch(updateNodeDataLocally({ nodeId, patch: nextData }));
+
+      // Throttle the broadcast so we don't flood the socket every frame
+      if (transformEmitTimersRef.current[nodeId]) return;
+      transformEmitTimersRef.current[nodeId] = setTimeout(() => {
+        emit("canvas:resize", {
+          workspaceId,
+          nodeId,
+          x: Math.round(target.x()),
+          y: Math.round(target.y()),
+          data: nextData,
+        });
+        delete transformEmitTimersRef.current[nodeId];
+      }, 50); // ~20fps cap
+    },
+    [dispatch, emit, nodesMap, workspaceId]
   );
 
   const handleNodeTransformEnd = useCallback(
@@ -746,63 +906,161 @@ export default function CanvasPage() {
     [dispatch, emit, nodesMap, workspaceId]
   );
 
-const latestNodesRef = useRef(nodesMap);
+  const handleArrowEndpointDragMove = useCallback(
+    (nodeId, endpoint, localX, localY) => {
+      const node = nodesMap[nodeId];
+      if (!node) return;
 
-useEffect(() => {
-  latestNodesRef.current = nodesMap;
-}, [nodesMap]);
+      const data = node.data || {};
+      const currentDx = data.dx ?? 150;
+      const currentDy = data.dy ?? 0;
 
-const handleInspectorChange = useCallback(
-  (field, value) => {
-    if (!selectedNode) return;
+      if (endpoint === "end") {
+        const { dx: snappedDx, dy: snappedDy } = snapArrowVector(localX, localY, isShiftPressed);
+        dispatch(updateNodeDataLocally({ nodeId, patch: { dx: snappedDx, dy: snappedDy } }));
+      } else {
+        // start handle: group origin shift, absolute end-point fixed rakhna hai
+        const nextX = node.x + localX;
+        const nextY = node.y + localY;
+        const nextDx = currentDx - localX;
+        const nextDy = currentDy - localY;
+        dispatch(updateNodePositionLocally({ nodeId, x: nextX, y: nextY }));
+        dispatch(updateNodeDataLocally({ nodeId, patch: { dx: nextDx, dy: nextDy } }));
+      }
+    },
+    [dispatch, isShiftPressed, nodesMap]
+  );
 
-    const nodeId = selectedNode.id;
+  const handleArrowEndpointDragEnd = useCallback(
+    async (nodeId, endpoint, localX, localY) => {
+      handleArrowEndpointDragMove(nodeId, endpoint, localX, localY);
 
-    // Instant UI update
-    dispatch(
-      updateNodeDataLocally({
-        nodeId,
-        patch: { [field]: value },
-      })
-    );
+      // dispatch ke baad latest state se hi save karo (redux batching safe)
+      const node = nodesMap[nodeId];
+      if (!node) return;
+      const data = node.data || {};
 
-    const timerKey = nodeId;
+      let payload;
+      if (endpoint === "end") {
+        const { dx: snappedDx, dy: snappedDy } = snapArrowVector(localX, localY, isShiftPressed);
+        payload = { data: { ...data, dx: snappedDx, dy: snappedDy } };
+      } else {
+        const currentDx = data.dx ?? 150;
+        const currentDy = data.dy ?? 0;
+        payload = {
+          x: Math.round(node.x + localX),
+          y: Math.round(node.y + localY),
+          data: { ...data, dx: currentDx - localX, dy: currentDy - localY },
+        };
+      }
 
-    // Cancel previous timer
-    if (colorTimersRef.current[timerKey]) {
-      clearTimeout(colorTimersRef.current[timerKey]);
-    }
+      const result = await dispatch(updateCanvasNode({ workspaceId, nodeId, payload }));
+      if (updateCanvasNode.rejected.match(result)) {
+        toast.error(result.payload || "Failed to update arrow");
+        return;
+      }
 
-    // Wait until user stops moving color picker
-    colorTimersRef.current[timerKey] = setTimeout(async () => {
-      const latestNode = latestNodesRef.current[nodeId];
+      emit("canvas:resize", { workspaceId, nodeId, ...payload });
+    },
+    [dispatch, emit, handleArrowEndpointDragMove, isShiftPressed, nodesMap, workspaceId]
+  );
 
-      if (!latestNode) return;
+  const latestNodesRef = useRef(nodesMap);
 
-      const result = await dispatch(
-        updateCanvasNode({
-          workspaceId,
+  useEffect(() => {
+    latestNodesRef.current = nodesMap;
+  }, [nodesMap]);
+
+  const colorEmitTimersRef = useRef({});
+
+  const handleInspectorChange = useCallback(
+    (field, value) => {
+      if (!selectedNode) return;
+
+      const nodeId = selectedNode.id;
+
+      // Instant UI update (local)
+      dispatch(
+        updateNodeDataLocally({
           nodeId,
-          payload: {
-            data: latestNode.data,
-          },
+          patch: { [field]: value },
         })
       );
 
-      if (updateCanvasNode.rejected.match(result)) {
-        toast.error(result.payload || "Failed to update node");
+      // Throttled live broadcast (leading + trailing) so no value gets dropped
+      if (!colorEmitTimersRef.current[nodeId]) {
+        emit("canvas:data", { workspaceId, nodeId, patch: { [field]: value } });
+        colorEmitTimersRef.current[nodeId] = {
+          timer: setTimeout(() => {
+            const pending = colorEmitTimersRef.current[nodeId]?.pending;
+            delete colorEmitTimersRef.current[nodeId];
+            if (pending) {
+              emit("canvas:data", { workspaceId, nodeId, patch: pending });
+            }
+          }, 60),
+          pending: null,
+        };
+      } else {
+        colorEmitTimersRef.current[nodeId].pending = { [field]: value };
+      }
+      const timerKey = nodeId;
+
+      // Cancel previous debounce timer (unchanged — this still persists to DB)
+      if (colorTimersRef.current[timerKey]) {
+        clearTimeout(colorTimersRef.current[timerKey]);
       }
 
-      delete colorTimersRef.current[timerKey];
-    }, 800); // 220 -> 800
-  },
-  [dispatch, selectedNode, workspaceId]
-);
+      // Wait until user stops moving color picker, then persist + broadcast final state
+      colorTimersRef.current[timerKey] = setTimeout(async () => {
+        const latestNode = latestNodesRef.current[nodeId];
+
+        if (!latestNode) return;
+
+        const result = await dispatch(
+          updateCanvasNode({
+            workspaceId,
+            nodeId,
+            payload: {
+              data: latestNode.data,
+            },
+          })
+        );
+
+        if (updateCanvasNode.rejected.match(result)) {
+          toast.error(result.payload || "Failed to update node");
+        } else {
+          emit("node:data:commit", { workspaceId, nodeId, data: latestNode.data });
+        }
+
+        delete colorTimersRef.current[timerKey];
+      }, 800);
+    },
+    [dispatch, selectedNode, workspaceId]
+  );
+
+
+
+  // Guards against double-commit when blur + Enter + selection-change fire close together
+  const savingTextRef = useRef(false);
+
   const handleEditorSave = useCallback(async () => {
-    if (!editingNodeId) return;
+    if (!editingNodeId || savingTextRef.current) return;
+    savingTextRef.current = true;
+
+    // Cancel any in-flight live-typing broadcast so a stale value can't
+    // overwrite the just-committed correct text on remote clients
+    if (textEmitTimerRef.current) {
+      clearTimeout(textEmitTimerRef.current);
+      textEmitTimerRef.current = null;
+    }
+    pendingTextValueRef.current = null;
+
 
     const node = nodesMap[editingNodeId];
-    if (!node) return;
+    if (!node) {
+      savingTextRef.current = false;
+      return;
+    }
 
     const textKey = NODE_TEXT_KEYS[node.type];
     const nextData = { ...(node.data || {}), [textKey]: editingValue };
@@ -815,6 +1073,8 @@ const handleInspectorChange = useCallback(
       })
     );
 
+    savingTextRef.current = false;
+
     if (updateCanvasNode.rejected.match(result)) {
       toast.error(result.payload || "Failed to update node");
       return;
@@ -823,6 +1083,17 @@ const handleInspectorChange = useCallback(
     setEditingNodeId(null);
   }, [dispatch, editingNodeId, editingValue, nodesMap, workspaceId]);
 
+  // Commit whatever was being typed whenever selection moves away from the node being edited
+  const prevEditingNodeIdRef = useRef(null);
+
+  useEffect(() => {
+    const previous = prevEditingNodeIdRef.current;
+    if (previous && previous !== editingNodeId) {
+      // selection changed away from the node that was being edited — flush it
+      handleEditorSave();
+    }
+    prevEditingNodeIdRef.current = editingNodeId;
+  }, [selectedNode?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleEditorKeyDown = useCallback(
     async (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
@@ -838,14 +1109,14 @@ const handleInspectorChange = useCallback(
   );
 
   const inspectorColors = selectedNode ? COLOR_FIELDS[selectedNode.type] || [] : [];
-  const overlayStyle = selectedNodeBounds
-    ? {
-        left: `${selectedNodeBounds.x * viewport.scale + viewport.x}px`,
-        top: `${selectedNodeBounds.y * viewport.scale + viewport.y}px`,
-        width: `${selectedNodeBounds.width * viewport.scale}px`,
-        height: `${selectedNodeBounds.height * viewport.scale}px`,
-      }
-    : null;
+  // const overlayStyle = selectedNodeBounds
+  //   ? {
+  //     left: `${selectedNodeBounds.x * viewport.scale + viewport.x}px`,
+  //     top: `${selectedNodeBounds.y * viewport.scale + viewport.y}px`,
+  //     width: `${selectedNodeBounds.width * viewport.scale}px`,
+  //     height: `${selectedNodeBounds.height * viewport.scale}px`,
+  //   }
+  //   : null;
 
   const handleDeleteSelected = useCallback(async () => {
     if (!selectedNodeIds.length) return;
@@ -862,7 +1133,6 @@ const handleInspectorChange = useCallback(
 
   const renderNode = (node) => {
     const commonProps = {
-      key: node.id,
       node,
       isSelected: selectedNodeIds.includes(node.id),
       onDragEnd: handleNodeDragEnd,
@@ -870,11 +1140,13 @@ const handleInspectorChange = useCallback(
     };
 
     switch (node.type) {
-      case "sticky": return <StickyNode {...commonProps} onDragMove={handleNodeDragMove} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
-      case "text": return <TextNode {...commonProps} onDragMove={handleNodeDragMove} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
+      case "sticky": return <StickyNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
+      case "text": return <TextNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
       case "rectangle":
-      case "circle": return <ShapeNode {...commonProps} onDragMove={handleNodeDragMove} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
-      case "arrow": return <ArrowNode {...commonProps} onDragMove={handleNodeDragMove} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
+      case "circle": return <ShapeNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
+      case "arrow": return <ArrowNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} canEdit={canEditCanvas}
+        onEndpointDragMove={handleArrowEndpointDragMove}
+        onEndpointDragEnd={handleArrowEndpointDragEnd} />;
       default: return null;
     }
   };
@@ -915,7 +1187,7 @@ const handleInspectorChange = useCallback(
 
       {/* Konva Stage */}
       <Stage
-    
+
         ref={stageRef}
         width={dimensions.width}
         height={dimensions.height}
@@ -930,8 +1202,14 @@ const handleInspectorChange = useCallback(
         onMouseUp={handleStagePointerUp}
         onClick={handleStageClick}
         onDragEnd={(e) => {
+          if (e.target !== e.target.getStage()) {
+            return;
+          }
           setViewport((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
         }}
+
+
+
         style={{ cursor: activeTool === "select" ? "grab" : "crosshair" }}
       >
         {/* Grid layer */}
@@ -946,29 +1224,7 @@ const handleInspectorChange = useCallback(
             />
           ))}
         </Layer>
-        {/* Remote cursors */}
-        <Layer listening={false}>
-          {Object.values(remoteCursors).map((cursor) => (
-            <Group key={`cursor-group-${cursor.userId}`} listening={false}>
-              <Circle
-                x={cursor.x}
-                y={cursor.y}
-                radius={7}
-                fill="#2563EB"
-                opacity={0.8}
-              />
-              <Text
-                x={cursor.x + 12}
-                y={cursor.y - 10}
-                text={cursor.name || "Guest"}
-                fontSize={12}
-                fill="#ffffff"
-                fontStyle="bold"
-                listening={false}
-              />
-            </Group>
-          ))}
-        </Layer>
+
         {/* Nodes layer */}
         <Layer>
           {nodes.map(renderNode)}
@@ -1018,6 +1274,50 @@ const handleInspectorChange = useCallback(
               listening={false}
             />
           )}
+          {remoteDraft && remoteDraft.type === "arrow" && (
+            <Arrow
+              x={remoteDraft.start.x}
+              y={remoteDraft.start.y}
+              points={[0, 0, remoteDraft.end.x - remoteDraft.start.x, remoteDraft.end.y - remoteDraft.start.y]}
+              stroke="#F97316"
+              fill="#F97316"
+              strokeWidth={2 / viewport.scale}
+              dash={[6, 4]}
+              pointerLength={10}
+              pointerWidth={8}
+              opacity={0.7}
+              listening={false}
+            />
+          )}
+
+          {remoteDraft && remoteDraft.tool && (() => {
+            const current = remoteDraft.current || remoteDraft.start;
+            const left = Math.min(remoteDraft.start.x, current.x);
+            const top = Math.min(remoteDraft.start.y, current.y);
+            const width = Math.max(24, Math.abs(current.x - remoteDraft.start.x));
+            const height = Math.max(24, Math.abs(current.y - remoteDraft.start.y));
+            const draftData = buildPresetData(remoteDraft.tool, { width, height });
+            const draftFill = draftData.fill || draftData.color || "#FED7AA";
+            const draftStroke = "#F97316";
+
+            return (
+              <>
+                {remoteDraft.tool === "sticky" && (
+                  <Rect x={left} y={top} width={width} height={height} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={10} opacity={0.6} listening={false} />
+                )}
+                {remoteDraft.tool === "rectangle" && (
+                  <Rect x={left} y={top} width={width} height={height} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.6} listening={false} />
+                )}
+                {remoteDraft.tool === "text" && (
+                  <Rect x={left} y={top} width={Math.max(width, 180)} height={Math.max(height, 48)} fill="transparent" stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.6} listening={false} />
+                )}
+                {remoteDraft.tool === "circle" && (
+                  <Circle x={left + width / 2} y={top + height / 2} radius={Math.max(width, height) / 2} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} opacity={0.6} listening={false} />
+                )}
+              </>
+            );
+          })()}
+
 
           <Transformer
             ref={transformerRef}
@@ -1027,15 +1327,15 @@ const handleInspectorChange = useCallback(
               selectedNode?.type === "circle" || isShiftPressed
                 ? ["top-left", "top-right", "bottom-left", "bottom-right"]
                 : [
-                    "top-left",
-                    "top-center",
-                    "top-right",
-                    "middle-right",
-                    "bottom-right",
-                    "bottom-center",
-                    "bottom-left",
-                    "middle-left",
-                  ]
+                  "top-left",
+                  "top-center",
+                  "top-right",
+                  "middle-right",
+                  "bottom-right",
+                  "bottom-center",
+                  "bottom-left",
+                  "middle-left",
+                ]
             }
             boundBoxFunc={(oldBox, newBox) => {
               if (newBox.width < 40 || newBox.height < 32) {
@@ -1046,6 +1346,31 @@ const handleInspectorChange = useCallback(
           />
         </Layer>
 
+        {/* Remote cursors */}
+        <Layer listening={false}>
+          {Object.values(remoteCursors).map((cursor) => (
+            <Group key={`cursor-group-${cursor.userId}`} listening={false}>
+              <Path
+                x={cursor.x}
+                y={cursor.y}
+                data="M0 0 L0 16 L4 12.5 L6.5 18 L8.5 17 L6 11.5 L11 11.5 Z"
+                fill="#2563EB"
+                stroke="#ffffff"
+                strokeWidth={1}
+                opacity={0.9}
+              />
+              <Text
+                x={cursor.x + 12}
+                y={cursor.y - 10}
+                text={cursor.name || "Guest"}
+                fontSize={12}
+                fill="#ffffff"
+                fontStyle="bold"
+                listening={false}
+              />
+            </Group>
+          ))}
+        </Layer>
       </Stage>
 
       {selectedNode && selectedNodeBounds && !editingNodeId && (
@@ -1139,7 +1464,24 @@ const handleInspectorChange = useCallback(
           <textarea
             autoFocus
             value={editingValue}
-            onChange={(event) => setEditingValue(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setEditingValue(value);
+
+              if (!textEmitTimerRef.current) {
+                emit("canvas:text", { workspaceId, nodeId: editingNodeId, value });
+                textEmitTimerRef.current = setTimeout(() => {
+                  textEmitTimerRef.current = null;
+                  if (pendingTextValueRef.current !== null) {
+                    const pending = pendingTextValueRef.current;
+                    pendingTextValueRef.current = null;
+                    emit("canvas:text", { workspaceId, nodeId: editingNodeId, value: pending });
+                  }
+                }, 120);
+              } else {
+                pendingTextValueRef.current = value;
+              }
+            }}
             onBlur={handleEditorSave}
             onKeyDown={handleEditorKeyDown}
             className="h-full w-full resize-none rounded-xl bg-transparent p-3 text-sm text-[color:var(--text-primary)] outline-none"

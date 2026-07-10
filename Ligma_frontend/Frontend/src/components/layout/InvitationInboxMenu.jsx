@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { acceptMyInvitationById, fetchMyPendingInvitations, rejectMyInvitationById } from "../../redux/invitationSlice";
 import { fetchWorkspaces } from "../../redux/workspaceSlice";
+import { useSocket } from "../../hooks/useSocket";
 
 export default function InvitationInboxMenu() {
   const dispatch = useDispatch();
@@ -14,11 +15,25 @@ export default function InvitationInboxMenu() {
   const inbox = useSelector((state) => state.invitations.inbox || []);
   const inboxLoading = useSelector((state) => state.invitations.inboxLoading);
 
+  const { on, off } = useSocket();
+
+  // Fetch once on mount (covers "user logs in")
   useEffect(() => {
     dispatch(fetchMyPendingInvitations());
-    const timer = window.setInterval(() => dispatch(fetchMyPendingInvitations()), 30000);
-    return () => window.clearInterval(timer);
   }, [dispatch]);
+
+  // Fetch only when a real-time invitation event arrives via Socket.IO
+  useEffect(() => {
+    const handleInvitationEvent = () => {
+      dispatch(fetchMyPendingInvitations());
+    };
+
+    on("invitation:updated", handleInvitationEvent);
+
+    return () => {
+      off("invitation:updated", handleInvitationEvent);
+    };
+  }, [dispatch, on, off]);
 
   const handleAccept = async (invitation) => {
     const result = await dispatch(acceptMyInvitationById(invitation.id));
@@ -36,7 +51,7 @@ export default function InvitationInboxMenu() {
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => { if (open) dispatch(fetchMyPendingInvitations()); }}>
       <DropdownMenuTrigger className="relative inline-flex items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-2.5 shadow-sm transition-colors hover:border-[color:var(--accent)] focus:outline-none">
         <Bell className="h-4 w-4 text-[color:var(--text-primary)]" />
         {inbox.length > 0 ? (

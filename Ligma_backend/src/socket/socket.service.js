@@ -205,6 +205,82 @@ const initSocket = (server) => {
       }
     });
 
+    //two new Handlers  and one rotation
+    socket.on("canvas:data", async ({ workspaceId, nodeId, patch } = {}) => {
+      try {
+        if (!workspaceId || !nodeId || typeof patch !== "object" || patch === null) {
+          return;
+        }
+
+        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+
+        socket.to(workspaceRoom(workspaceId)).emit("canvas:data", {
+          workspaceId,
+          nodeId,
+          patch,
+          actorId: socket.user.id,
+        });
+      } catch {
+        // silently ignore unauthorized updates
+      }
+    });
+
+    socket.on("canvas:text", async ({ workspaceId, nodeId, value } = {}) => {
+      try {
+        if (!workspaceId || !nodeId || typeof value !== "string") {
+          return;
+        }
+
+        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+
+        socket.to(workspaceRoom(workspaceId)).emit("canvas:text", {
+          workspaceId,
+          nodeId,
+          value,
+          actorId: socket.user.id,
+        });
+      } catch {
+        // silently ignore unauthorized updates
+      }
+    });
+
+    socket.on("canvas:rotate", async ({ workspaceId, nodeId, rotation } = {}) => {
+      try {
+        if (!workspaceId || !nodeId || typeof rotation !== "number") {
+          return;
+        }
+
+        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+
+        socket.to(workspaceRoom(workspaceId)).emit("canvas:rotate", {
+          workspaceId,
+          nodeId,
+          rotation,
+          actorId: socket.user.id,
+        });
+      } catch {
+        // silently ignore unauthorized updates
+      }
+    });
+
+    socket.on("canvas:draft", async ({ workspaceId, draft } = {}) => {
+      try {
+        if (!workspaceId || typeof draft !== "object" || draft === null) {
+          return;
+        }
+
+        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+
+        socket.to(workspaceRoom(workspaceId)).emit("canvas:draft", {
+          workspaceId,
+          draft,
+          actorId: socket.user.id,
+        });
+      } catch {
+        // silently ignore unauthorized updates
+      }
+    });
+
     socket.on("disconnect", (reason) => {
       cleanupSocketRooms(socket);
       logger.info(`🔌 Socket disconnected: ${socket.id} | Reason: ${reason}`);

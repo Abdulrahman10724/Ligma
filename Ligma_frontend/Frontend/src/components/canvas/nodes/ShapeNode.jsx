@@ -12,6 +12,7 @@ export default function ShapeNode({
   onDragMove,
   onClick,
   onDoubleClick,
+  onTransform,
   onTransformEnd,
 }) {
   const { x, y, type, data = {} } = node;
@@ -26,14 +27,22 @@ export default function ShapeNode({
     const { width, height, fill, stroke } = { ...DEFAULTS.rectangle, ...data };
     return (
       <Group
-        id={`node-${node.id}`}
-        x={x}
-        y={y}
-        draggable
-        onDragMove={(e) => onDragMove(node.id, e.target.x(), e.target.y())}
-        onDragEnd={handleDragEnd}
+  id={`node-${node.id}`}
+  x={x}
+  y={y}
+  draggable
+  onDragStart={(e) => { e.cancelBubble = true; }}
+  onDragMove={(e) => {
+    e.cancelBubble = true;
+    onDragMove(node.id, e.target.x(), e.target.y());
+  }}
+  onDragEnd={(e) => {
+    e.cancelBubble = true;
+    onDragEnd(node.id, e.target.x(), e.target.y());
+  }}
         onClick={handleClick}
         onDblClick={() => onDoubleClick(node.id)}
+        onTransform={(e) => onTransform(node.id, e.target)}
         onTransformEnd={(e) => onTransformEnd(node.id, e.target)}
       >
         <Rect
@@ -72,6 +81,7 @@ export default function ShapeNode({
         onDragEnd={handleDragEnd}
         onClick={handleClick}
         onDblClick={() => onDoubleClick(node.id)}
+        onTransform={(e) => onTransform(node.id, e.target)}
         onTransformEnd={(e) => onTransformEnd(node.id, e.target)}
       >
         <Circle

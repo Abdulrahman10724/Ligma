@@ -1,4 +1,7 @@
+
 import apiClient from "./api.service";
+
+let inboxRequestInFlight = null;
 
 export const invitationService = {
   listByWorkspace: (workspaceId) => apiClient.get(`/workspaces/${workspaceId}/invitations`),
@@ -7,7 +10,19 @@ export const invitationService = {
   acceptByToken: (token) => apiClient.post(`/invitations/${token}/accept`),
   rejectByToken: (token) => apiClient.patch(`/invitations/${token}/reject`),
   revokeById: (workspaceId, invitationId) => apiClient.patch(`/workspaces/${workspaceId}/invitations/${invitationId}/revoke`),
-  listInbox: () => apiClient.get("/invitations/inbox"),
+  listInbox: () => {
+    if (inboxRequestInFlight) {
+      return inboxRequestInFlight;
+    }
+
+    inboxRequestInFlight = apiClient
+      .get("/invitations/inbox")
+      .finally(() => {
+        inboxRequestInFlight = null;
+      });
+
+    return inboxRequestInFlight;
+  },
   acceptById: (invitationId) => apiClient.post(`/invitations/by-id/${invitationId}/accept`),
   rejectById: (invitationId) => apiClient.patch(`/invitations/by-id/${invitationId}/reject`),
 };
