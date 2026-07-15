@@ -4,6 +4,7 @@ import invitationReducer from "./invitationSlice";
 import workspaceReducer from "./workspaceSlice";
 import memberReducer from "./memberSlice";
 import canvasReducer from "./canvasSlice";
+import taskReducer from "./taskSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     workspace: workspaceReducer,
     members: memberReducer,
     canvas: canvasReducer,
+    tasks: taskReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

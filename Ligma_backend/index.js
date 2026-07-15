@@ -16,6 +16,7 @@ import invitationRoutes from "./src/routes/invitation.routes.js";
 import workspaceRoutes from "./src/routes/workspace.routes.js";
 import memberRoutes from "./src/routes/member.routes.js";
 import canvasNodeRoutes from "./src/routes/canvas-node.routes.js";
+import taskRoutes from "./src/routes/task.routes.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -78,6 +79,7 @@ const startServer = async () => {
   app.use("/api/v1/workspaces", workspaceRoutes);
   app.use("/api/v1/workspaces/:workspaceId/members", memberRoutes);
   app.use("/api/v1/workspaces/:workspaceId/canvas", canvasNodeRoutes);
+  app.use("/api/v1/workspaces/:workspaceId/tasks", taskRoutes);
 
   // 4. Initialize Socket.IO
   initSocket(server);

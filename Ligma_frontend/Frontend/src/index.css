@@ -48,6 +48,13 @@
   --sticky-blue: #DBEAFE;
   --sticky-green: #D1FAE5;
   --sticky-orange: #FFEDD5;
+
+  /* ── @base-ui / Radix popover + menu token mappings ── */
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+  --muted-foreground: var(--text-secondary);
+  --accent-foreground: var(--text-primary);
+  --foreground: var(--text-primary);
 }
 
 /* Supports system dark mode as well as a class override */
@@ -63,6 +70,12 @@
     --success: #4ADE80;
     --warning: #FBBF24;
     --danger: #F87171;
+
+    --popover: var(--bg-surface);
+    --popover-foreground: var(--text-primary);
+    --muted-foreground: var(--text-secondary);
+    --accent-foreground: var(--text-primary);
+    --foreground: var(--text-primary);
   }
 }
 
@@ -77,6 +90,12 @@
   --success: #4ADE80;
   --warning: #FBBF24;
   --danger: #F87171;
+
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+  --muted-foreground: var(--text-secondary);
+  --accent-foreground: var(--text-primary);
+  --foreground: var(--text-primary);
 }
 
 body {
@@ -85,4 +104,88 @@ body {
   font-family: var(--font-sans);
   margin: 0;
   padding: 0;
+}
+
+/* ── @base-ui DropdownMenu / Menu popup theming ──────────────────────────── */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-slot="dropdown-menu-item"]:focus,
+[data-slot="dropdown-menu-item"]:hover {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── @base-ui Popover popup theming ──────────────────────────────────────── */
+[data-slot="popover-content"] {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── Task Board ─────────────────────────────────────────────────────────── */
+
+/* react-day-picker dark-mode overrides */
+.task-date-picker .rdp-root {
+  --rdp-accent-color: var(--accent);
+  --rdp-accent-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  --rdp-background-color: var(--bg-primary);
+  --rdp-selected-border: var(--accent);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.task-date-picker .rdp-day_button {
+  color: var(--text-primary);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.task-date-picker .rdp-day_button:hover:not([disabled]) {
+  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.task-date-picker .rdp-day[data-selected="true"] .rdp-day_button {
+  background-color: var(--accent);
+  color: white;
+}
+
+.task-date-picker .rdp-day[data-disabled="true"] .rdp-day_button {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.task-date-picker .rdp-nav_button {
+  color: var(--text-secondary);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+}
+
+.task-date-picker .rdp-nav_button:hover {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.task-date-picker .rdp-caption_label,
+.task-date-picker .rdp-head_cell {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.task-date-picker .rdp-table {
+  border-spacing: 2px;
+}
+
+/* Smooth task row transitions */
+@keyframes task-slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
