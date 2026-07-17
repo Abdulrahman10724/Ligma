@@ -127,6 +127,11 @@ const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
   await ensureIndexes();
   const existing = await findTaskByNodeId(workspaceId, nodeId);
   if (!existing) return;
+  if (existing.workspaceId?.toString() !== workspaceId) {
+    const err = new Error("Task not found in this workspace");
+    err.statusCode = 404;
+    throw err;
+  }
 
   await deleteTask(existing._id.toString(), workspaceId);
   logger.info(`task.service: removed task ${existing._id} for node=${nodeId}`);
@@ -136,7 +141,7 @@ const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
       workspaceId,
       userId: actorId || existing.assigneeId?.toString() || existing.workspaceId?.toString(),
       eventType: EVENT_TYPES.TASK_DELETED,
-      taskId: existing._id.toString(),
+      taskId,
       nodeId: existing.nodeId ? existing.nodeId.toString() : null,
       payload: {
         snapshot: sanitizeTask(existing),
@@ -146,6 +151,10 @@ const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
   } catch (err) {
     logger.warn("event logging failed on task delete", err?.message || err);
   }
+
+  await deleteTask(taskId, workspaceId);
+  logger.info(`task.service: removed task ${taskId} (nodeId=${existing.nodeId || "null"})`);
+
 
   // cascade-delete subtasks
   try {

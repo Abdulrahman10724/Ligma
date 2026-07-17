@@ -248,7 +248,6 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
 
   return sanitized;
 };
-
 const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
   const { existing } = await assertNodeAccess(workspaceId, userId, nodeId);
 
@@ -257,10 +256,10 @@ const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
       workspaceId,
       userId,
       eventType: EVENT_TYPES.NODE_DELETED,
-      nodeId: existing.id,
+      nodeId: existing._id.toString(),   // ✅ _id use karo, id nahi
       payload: {
         snapshot: {
-          id: existing._id?.toString() || existing.id,
+          id: existing._id.toString(),   // ✅ simplify — hamesha _id hoga yahan
           type: existing.type,
           x: existing.x,
           y: existing.y,
@@ -277,6 +276,7 @@ const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
   } catch (error) {
     logger.warn("event logging failed on node delete", error?.message || error);
   }
+
 
   await deleteNode(nodeId, workspaceId);
   // remove linked task asynchronously
