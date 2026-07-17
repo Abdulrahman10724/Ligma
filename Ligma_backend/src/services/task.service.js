@@ -9,6 +9,7 @@ import {
   findTaskById,
 } from "../models/task.model.js";
 import { emitWorkspaceEvent } from "../socket/socket.service.js";
+import { appendEvent, EVENT_TYPES } from "./event-log.service.js";
 import logger from "../utils/logger.util.js";
 
 const ensureIndexes = async () => {
@@ -21,7 +22,7 @@ const listTasks = async (workspaceId) => {
   return tasks.map(sanitizeTask);
 };
 
-const createTaskForNode = async (workspaceId, nodeId, data = {}) => {
+const createTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null) => {
   await ensureIndexes();
   const existing = nodeId ? await findTaskByNodeId(workspaceId, nodeId) : null;
   if (existing) {
@@ -46,6 +47,36 @@ const createTaskForNode = async (workspaceId, nodeId, data = {}) => {
   const created = await createTask(doc);
   logger.info(`task.service: created task id=${created._id} for node=${nodeId}`);
   const sanitized = sanitizeTask(created);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId: actorId || data.userId || created.assigneeId?.toString() || created.workspaceId?.toString(),
+      eventType: EVENT_TYPES.TASK_CREATED,
+      taskId: sanitized.id,
+      nodeId: sanitized.nodeId || null,
+      payload: {
+        snapshot: {
+          id: sanitized.id,
+          nodeId: sanitized.nodeId || null,
+          parentTaskId: sanitized.parentTaskId || null,
+          title: sanitized.title,
+          description: sanitized.description,
+          type: sanitized.type,
+          status: sanitized.status,
+          assigneeId: sanitized.assigneeId || null,
+          dueDate: sanitized.dueDate || null,
+          priority: sanitized.priority || null,
+          order: sanitized.order,
+          metadata: sanitized.metadata || {},
+        },
+      },
+      validateTask: false,
+    });
+  } catch (err) {
+    logger.warn("event logging failed on task create", err?.message || err);
+  }
+
   try {
     emitWorkspaceEvent(workspaceId, "tasks:created", sanitized);
   } catch (err) {
@@ -54,7 +85,7 @@ const createTaskForNode = async (workspaceId, nodeId, data = {}) => {
   return sanitized;
 };
 
-const updateTaskForNode = async (workspaceId, nodeId, data = {}) => {
+const updateTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null) => {
   await ensureIndexes();
   const existing = await findTaskByNodeId(workspaceId, nodeId);
   if (!existing) return null;
@@ -67,6 +98,23 @@ const updateTaskForNode = async (workspaceId, nodeId, data = {}) => {
 
   const updated = await updateTask(existing._id.toString(), workspaceId, fields);
   const sanitized = sanitizeTask(updated);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId: actorId || data.userId || sanitized.assigneeId || updated?.workspaceId?.toString(),
+      eventType: EVENT_TYPES.TASK_UPDATED,
+      taskId: sanitized.id,
+      nodeId: sanitized.nodeId || null,
+      payload: {
+        previousFields: fields,
+        nextFields: Object.keys(fields).reduce((acc, key) => ({ ...acc, [key]: sanitized[key] }), {}),
+      },
+    });
+  } catch (err) {
+    logger.warn("event logging failed on task update", err?.message || err);
+  }
+
   try {
     emitWorkspaceEvent(workspaceId, "tasks:updated", sanitized);
   } catch (err) {
@@ -75,13 +123,29 @@ const updateTaskForNode = async (workspaceId, nodeId, data = {}) => {
   return sanitized;
 };
 
-const removeTaskForNode = async (workspaceId, nodeId) => {
+const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
   await ensureIndexes();
   const existing = await findTaskByNodeId(workspaceId, nodeId);
   if (!existing) return;
 
   await deleteTask(existing._id.toString(), workspaceId);
   logger.info(`task.service: removed task ${existing._id} for node=${nodeId}`);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId: actorId || existing.assigneeId?.toString() || existing.workspaceId?.toString(),
+      eventType: EVENT_TYPES.TASK_DELETED,
+      taskId: existing._id.toString(),
+      nodeId: existing.nodeId ? existing.nodeId.toString() : null,
+      payload: {
+        snapshot: sanitizeTask(existing),
+      },
+      validateTask: false,
+    });
+  } catch (err) {
+    logger.warn("event logging failed on task delete", err?.message || err);
+  }
 
   // cascade-delete subtasks
   try {
@@ -105,7 +169,7 @@ const removeTaskForNode = async (workspaceId, nodeId) => {
  * This correctly handles manually-created tasks that have nodeId=null,
  * which would silently fail with removeTaskForNode.
  */
-const removeTaskById = async (workspaceId, taskId) => {
+const removeTaskById = async (workspaceId, taskId, actorId = null) => {
   await ensureIndexes();
   const existing = await findTaskById(taskId);
   if (!existing) return;
@@ -119,6 +183,22 @@ const removeTaskById = async (workspaceId, taskId) => {
 
   await deleteTask(taskId, workspaceId);
   logger.info(`task.service: removed task ${taskId} (nodeId=${existing.nodeId || "null"})`);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId: actorId || existing.assigneeId?.toString() || existing.workspaceId?.toString(),
+      eventType: EVENT_TYPES.TASK_DELETED,
+      taskId,
+      nodeId: existing.nodeId ? existing.nodeId.toString() : null,
+      payload: {
+        snapshot: sanitizeTask(existing),
+      },
+      validateTask: false,
+    });
+  } catch (err) {
+    logger.warn("event logging failed on task delete", err?.message || err);
+  }
 
   // cascade-delete subtasks
   try {

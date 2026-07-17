@@ -16,9 +16,10 @@ import {
   canLockNode,
   canMutateNode,
   getWorkspaceRole,
-  normalizeNodeAllowedUserIds ,
+  normalizeNodeAllowedUserIds,
 } from "./member.service.js";
 import { classifyNodeContent } from "./classification.service.js";
+import { appendEvent, EVENT_TYPES } from "./event-log.service.js";
 import * as taskService from "./task.service.js";
 import logger from "../utils/logger.util.js";
 
@@ -43,6 +44,57 @@ function getNodeText(node) {
   return node.data[key] || "";
 }
 
+const NODE_GEOMETRY_KEYS = new Set(["width", "height", "radius", "dx", "dy"]);
+
+const pickKeys = (object, keys) => {
+  const result = {};
+  for (const key of keys) {
+    if (object?.[key] !== undefined) {
+      result[key] = object[key];
+    }
+  }
+  return result;
+};
+
+const buildNodeUpdateEvent = (beforeNode, afterNode, payload) => {
+  const hasX = payload?.x !== undefined;
+  const hasY = payload?.y !== undefined;
+  const hasData = payload?.data !== undefined;
+  const dataKeys = hasData && payload.data && typeof payload.data === "object" ? Object.keys(payload.data) : [];
+  const geometryTouched = dataKeys.some((key) => NODE_GEOMETRY_KEYS.has(key));
+
+  if ((hasX || hasY) && !hasData) {
+    return {
+      eventType: EVENT_TYPES.NODE_MOVED,
+      payload: {
+        previousPosition: { x: beforeNode.x, y: beforeNode.y },
+        nextPosition: { x: afterNode.x, y: afterNode.y },
+      },
+    };
+  }
+
+  if ((hasX || hasY) && geometryTouched) {
+    return {
+      eventType: EVENT_TYPES.NODE_RESIZED,
+      payload: {
+        previousPosition: { x: beforeNode.x, y: beforeNode.y },
+        nextPosition: { x: afterNode.x, y: afterNode.y },
+        previousData: pickKeys(beforeNode.data || {}, dataKeys),
+        nextData: pickKeys(afterNode.data || {}, dataKeys),
+      },
+    };
+  }
+
+  return {
+    eventType: EVENT_TYPES.NODE_UPDATED,
+    payload: {
+      previousData: hasData ? pickKeys(beforeNode.data || {}, dataKeys) : beforeNode.data || {},
+      nextData: hasData ? pickKeys(afterNode.data || {}, dataKeys) : afterNode.data || {},
+      nextPosition: { x: afterNode.x, y: afterNode.y },
+    },
+  };
+};
+
 const listCanvasNodes = async (workspaceId, userId) => {
   await ensureCanvasNodeIndexes();
   await assertWorkspaceAccess(workspaceId, userId);
@@ -61,7 +113,7 @@ const assertNodeAccess = async (workspaceId, userId, nodeId) => {
     throw error;
   }
 
-  if (!canMutateNode(existing, workspaceRole,userId)) {
+  if (!canMutateNode(existing, workspaceRole, userId)) {
     const error = new Error("Forbidden");
     error.statusCode = 403;
     throw error;
@@ -78,6 +130,31 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
 
   const node = await createNode({ workspaceId, createdById: userId, type, x, y, data });
   const sanitized = sanitizeCanvasNode(node);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId,
+      eventType: EVENT_TYPES.NODE_CREATED,
+      nodeId: sanitized.id,
+      payload: {
+        snapshot: {
+          id: sanitized.id,
+          type: sanitized.type,
+          x: sanitized.x,
+          y: sanitized.y,
+          data: sanitized.data || {},
+          locked: sanitized.locked,
+          lockedBy: sanitized.lockedBy,
+          lockedAt: sanitized.lockedAt,
+          allowedUserIds: sanitized.allowedUserIds || [],
+          createdById: sanitized.createdById,
+        },
+      },
+    });
+  } catch (error) {
+    logger.warn("event logging failed on node create", error?.message || error);
+  }
 
   // classify and sync asynchronously — works for every node type
   (async () => {
@@ -97,7 +174,7 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
           description: result.description || "",
           type: result.classification || (result.references?.length ? "Reference" : "Action"),
           metadata: { references: result.references || [], emails: result.emails || [] },
-        });
+        }, userId);
         logger.info(`canvas.node.create: task created for node=${sanitized.id}`);
       } else {
         logger.info(`canvas.node.create: no task created for node=${sanitized.id} (no classification/references)`);
@@ -123,6 +200,19 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
   const updated = await updateNode(nodeId, workspaceId, updateFields);
   const sanitized = sanitizeCanvasNode(updated);
 
+  try {
+    const event = buildNodeUpdateEvent(existing, sanitized, payload);
+    await appendEvent({
+      workspaceId,
+      userId,
+      eventType: event.eventType,
+      nodeId: sanitized.id,
+      payload: event.payload,
+    });
+  } catch (error) {
+    logger.warn("event logging failed on node update", error?.message || error);
+  }
+
   // Determine the correct text key for this node type
   const textKey = NODE_TEXT_KEYS[existing.type];
 
@@ -145,7 +235,7 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
             description: result.description || "",
             type: result.classification || (result.references?.length ? "Reference" : undefined),
             metadata: { references: result.references || [], emails: result.emails || [] },
-          });
+          }, userId);
           logger.info(`canvas.node.update: task updated/created for node=${sanitized.id}`);
         } else {
           logger.info(`canvas.node.update: no task created/updated for node=${sanitized.id}`);
@@ -160,13 +250,39 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
 };
 
 const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
-  await assertNodeAccess(workspaceId, userId, nodeId);
+  const { existing } = await assertNodeAccess(workspaceId, userId, nodeId);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId,
+      eventType: EVENT_TYPES.NODE_DELETED,
+      nodeId: existing.id,
+      payload: {
+        snapshot: {
+          id: existing._id?.toString() || existing.id,
+          type: existing.type,
+          x: existing.x,
+          y: existing.y,
+          data: existing.data || {},
+          locked: existing.locked,
+          lockedBy: existing.lockedBy ? existing.lockedBy.toString() : null,
+          lockedAt: existing.lockedAt || null,
+          allowedUserIds: existing.allowedUserIds || [],
+          createdById: existing.createdById ? existing.createdById.toString() : existing.createdById,
+        },
+      },
+      validateNode: false,
+    });
+  } catch (error) {
+    logger.warn("event logging failed on node delete", error?.message || error);
+  }
 
   await deleteNode(nodeId, workspaceId);
   // remove linked task asynchronously
   (async () => {
     try {
-      await taskService.removeTaskForNode(workspaceId, nodeId);
+      await taskService.removeTaskForNode(workspaceId, nodeId, userId);
     } catch (err) {
       logger.warn("task removal failed on node delete", err?.message || err);
     }
@@ -189,6 +305,22 @@ const lockCanvasNode = async (workspaceId, userId, nodeId) => {
     lockedAt: new Date(),
   });
 
+  try {
+    await appendEvent({
+      workspaceId,
+      userId,
+      eventType: EVENT_TYPES.NODE_LOCKED,
+      nodeId,
+      payload: {
+        locked: true,
+        lockedBy: userId,
+        lockedAt: updated?.lockedAt || new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    logger.warn("event logging failed on node lock", error?.message || error);
+  }
+
   return sanitizeCanvasNode(updated);
 };
 
@@ -208,6 +340,22 @@ const unlockCanvasNode = async (workspaceId, userId, nodeId) => {
     lockedAt: null,
   });
 
+  try {
+    await appendEvent({
+      workspaceId,
+      userId,
+      eventType: EVENT_TYPES.NODE_UNLOCKED,
+      nodeId,
+      payload: {
+        locked: false,
+        lockedBy: null,
+        lockedAt: null,
+      },
+    });
+  } catch (error) {
+    logger.warn("event logging failed on node unlock", error?.message || error);
+  }
+
   return sanitizeCanvasNode(updated);
 };
 
@@ -222,7 +370,24 @@ const updateCanvasNodePermissions = async (workspaceId, userId, nodeId, allowedU
   }
 
   const normalizedAllowedUserIds = await normalizeNodeAllowedUserIds(workspaceId, allowedUserIds);
+  const beforeAllowedUserIds = Array.isArray(existing.allowedUserIds) ? existing.allowedUserIds.map((id) => id.toString()) : [];
   const updated = await updateNode(nodeId, workspaceId, { allowedUserIds: normalizedAllowedUserIds });
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId,
+      eventType: EVENT_TYPES.NODE_PERMISSION_CHANGED,
+      nodeId,
+      payload: {
+        previousAllowedUserIds: beforeAllowedUserIds,
+        nextAllowedUserIds: normalizedAllowedUserIds,
+      },
+    });
+  } catch (error) {
+    logger.warn("event logging failed on node permission change", error?.message || error);
+  }
+
   return sanitizeCanvasNode(updated);
 };
 
