@@ -1,3 +1,4 @@
+//canvas-node.service.js
 import {
   VALID_NODE_TYPES,
   createNode,
@@ -8,7 +9,15 @@ import {
   sanitizeCanvasNode,
   updateNode,
 } from "../models/canvas-node.model.js";
-import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "./member.service.js";
+import {
+  assertWorkspaceAccess,
+  assertWorkspaceEditAccess,
+  assertWorkspaceLead,
+  canLockNode,
+  canMutateNode,
+  getWorkspaceRole,
+  normalizeNodeAllowedUserIds ,
+} from "./member.service.js";
 import { classifyNodeContent } from "./classification.service.js";
 import * as taskService from "./task.service.js";
 import logger from "../utils/logger.util.js";
@@ -40,6 +49,25 @@ const listCanvasNodes = async (workspaceId, userId) => {
 
   const nodes = await findNodesByWorkspace(workspaceId);
   return nodes.map(sanitizeCanvasNode);
+};
+
+const assertNodeAccess = async (workspaceId, userId, nodeId) => {
+  const workspaceRole = await getWorkspaceRole(workspaceId, userId);
+  const existing = await findNodeById(nodeId);
+
+  if (!existing || existing.workspaceId.toString() !== workspaceId) {
+    const error = new Error("Node not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!canMutateNode(existing, workspaceRole,userId)) {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return { existing, workspaceRole };
 };
 
 const createCanvasNode = async (workspaceId, userId, payload) => {
@@ -82,14 +110,7 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
 };
 
 const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
-  await assertWorkspaceEditAccess(workspaceId, userId);
-
-  const existing = await findNodeById(nodeId);
-  if (!existing || existing.workspaceId.toString() !== workspaceId) {
-    const error = new Error("Node not found");
-    error.statusCode = 404;
-    throw error;
-  }
+  const { existing } = await assertNodeAccess(workspaceId, userId, nodeId);
 
   const allowedFields = ["x", "y", "data"];
   const updateFields = {};
@@ -139,14 +160,7 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
 };
 
 const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
-  await assertWorkspaceEditAccess(workspaceId, userId);
-
-  const existing = await findNodeById(nodeId);
-  if (!existing || existing.workspaceId.toString() !== workspaceId) {
-    const error = new Error("Node not found");
-    error.statusCode = 404;
-    throw error;
-  }
+  await assertNodeAccess(workspaceId, userId, nodeId);
 
   await deleteNode(nodeId, workspaceId);
   // remove linked task asynchronously
@@ -159,7 +173,60 @@ const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
   })();
 };
 
-export { VALID_NODE_TYPES, listCanvasNodes, createCanvasNode, updateCanvasNode, deleteCanvasNode };
+const lockCanvasNode = async (workspaceId, userId, nodeId) => {
+  await assertWorkspaceLead(workspaceId, userId);
+
+  const existing = await findNodeById(nodeId);
+  if (!existing || existing.workspaceId.toString() !== workspaceId) {
+    const error = new Error("Node not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const updated = await updateNode(nodeId, workspaceId, {
+    locked: true,
+    lockedBy: userId,
+    lockedAt: new Date(),
+  });
+
+  return sanitizeCanvasNode(updated);
+};
+
+const unlockCanvasNode = async (workspaceId, userId, nodeId) => {
+  await assertWorkspaceLead(workspaceId, userId);
+
+  const existing = await findNodeById(nodeId);
+  if (!existing || existing.workspaceId.toString() !== workspaceId) {
+    const error = new Error("Node not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const updated = await updateNode(nodeId, workspaceId, {
+    locked: false,
+    lockedBy: null,
+    lockedAt: null,
+  });
+
+  return sanitizeCanvasNode(updated);
+};
+
+const updateCanvasNodePermissions = async (workspaceId, userId, nodeId, allowedUserIds) => {
+  await assertWorkspaceLead(workspaceId, userId);
+
+  const existing = await findNodeById(nodeId);
+  if (!existing || existing.workspaceId.toString() !== workspaceId) {
+    const error = new Error("Node not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const normalizedAllowedUserIds = await normalizeNodeAllowedUserIds(workspaceId, allowedUserIds);
+  const updated = await updateNode(nodeId, workspaceId, { allowedUserIds: normalizedAllowedUserIds });
+  return sanitizeCanvasNode(updated);
+};
+
+export { VALID_NODE_TYPES, listCanvasNodes, createCanvasNode, updateCanvasNode, deleteCanvasNode, lockCanvasNode, unlockCanvasNode, updateCanvasNodePermissions, assertNodeAccess };
 
 export default {
   VALID_NODE_TYPES,
@@ -167,4 +234,8 @@ export default {
   createCanvasNode,
   updateCanvasNode,
   deleteCanvasNode,
+  lockCanvasNode,
+  unlockCanvasNode,
+  updateCanvasNodePermissions,
+  assertNodeAccess,
 };

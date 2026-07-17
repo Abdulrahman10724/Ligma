@@ -7,12 +7,15 @@ const PADDING = 8;
 export default function TextNode({
   node,
   isSelected,
+  permissions,
   onDragEnd,
   onDragMove,
   onClick,
   onDoubleClick,
   onTransform,
   onTransformEnd,
+  onMouseEnter,
+  onMouseLeave,
 }) {
   const { x, y, data = {} } = node;
   const text = data.text ?? "Text block";
@@ -20,13 +23,14 @@ export default function TextNode({
   const color = data.color || "#18181B";
   const width = data.width || WIDTH;
   const height = data.height || MIN_HEIGHT;
+  const isLocked = Boolean(permissions?.isLocked);
 
   return (
     <Group
       id={`node-${node.id}`}
       x={x}
       y={y}
-      draggable
+      draggable={permissions?.canMove}
       onDragStart={(e) => { e.cancelBubble = true; }}
       onDragMove={(e) => {
         e.cancelBubble = true;
@@ -37,9 +41,11 @@ export default function TextNode({
         onDragEnd(node.id, e.target.x(), e.target.y());
       }}
       onClick={() => onClick(node.id)}
-      onDblClick={() => onDoubleClick(node.id)}
-      onTransform={(e) => onTransform?.(node.id, e.target)}
-      onTransformEnd={(e) => onTransformEnd?.(node.id, e.target)}
+      onDblClick={() => permissions?.canEdit && onDoubleClick(node.id)}
+      onTransform={(e) => permissions?.canResize && onTransform?.(node.id, e.target)}
+      onTransformEnd={(e) => permissions?.canResize && onTransformEnd?.(node.id, e.target)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {isSelected && (
         <Rect
@@ -65,6 +71,19 @@ export default function TextNode({
         fill={color}
         wrap="word"
       />
+      {isLocked && (
+        <Text
+          x={width - 52}
+          y={8}
+          width={44}
+          text="Locked"
+          fontSize={10}
+          fontFamily="Inter, system-ui, sans-serif"
+          fill="#991B1B"
+          align="right"
+          listening={false}
+        />
+      )}
     </Group>
   );
 }

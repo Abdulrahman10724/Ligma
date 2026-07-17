@@ -1,17 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Check } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer, Path } from "react-konva";
 import { HexColorPicker } from "react-colorful";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
 import useSocket from "../hooks/useSocket";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { computeNodePermissions, useNodePermissions } from "../hooks/useNodePermissions";
+import { useWorkspaceRole } from "../hooks/useWorkspaceRole";
+
+import { fetchWorkspaceMembers } from "../redux/memberSlice";
+
+import { Button } from "../components/ui/button";
+
+
 
 import {
   fetchCanvasNodes,
   createCanvasNode,
   updateCanvasNode,
   deleteCanvasNode,
+  lockCanvasNode,
+  unlockCanvasNode,
+  updateCanvasNodePermissions,
   updateNodePositionLocally,
   updateNodeDataLocally,
   upsertNodeLocally,
@@ -99,8 +112,9 @@ export default function CanvasPage() {
   const { id: workspaceId } = useParams();
   const dispatch = useDispatch();
   const { nodes: nodesMap, loading } = useSelector((state) => state.canvas);
-  const { activeWorkspace } = useSelector((state) => state.workspace);
+  // const { activeWorkspace } = useSelector((state) => state.workspace);
   const { user: currentUser } = useSelector((state) => state.auth);
+  const { workspaceRole, isLead, canEditWorkspace } = useWorkspaceRole();
   // status
   const { emit, on, off } = useSocket({ workspaceId, autoJoin: false });
 
@@ -119,6 +133,11 @@ export default function CanvasPage() {
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [activeColor, setActiveColor] = useState("#FEF3C7");
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  const [draftAllowedUserIds, setDraftAllowedUserIds] = useState([]);
+const [savingPermissions, setSavingPermissions] = useState(false);
+  const { list: members } = useSelector((state) => state.members);
+  const [hoveredNodeId, setHoveredNodeId] = useState(null);
   const colorTimersRef = useRef({});
   const clipboardNodeRef = useRef(null);
   const dragEmitRef = useRef(0);
@@ -174,18 +193,21 @@ export default function CanvasPage() {
   }, []);
 
   // Load nodes
-  useEffect(() => {
-    if (!workspaceId) return;
-    dispatch(fetchCanvasNodes(workspaceId));
-    return () => {
-      dispatch(clearCanvas());
-    };
-  }, [dispatch, workspaceId]);
+useEffect(() => {
+  if (!workspaceId) return;
+  dispatch(fetchCanvasNodes(workspaceId));
+  return () => {
+    dispatch(clearCanvas());
+  };
+}, [dispatch, workspaceId]);
+
+
 
   const nodes = Object.values(nodesMap);
   const selectedNodeId = selectedNodeIds[0] || null;
   const selectedNode = selectedNodeId ? nodesMap[selectedNodeId] : null;
-  const canEditCanvas = activeWorkspace?.currentUserRole !== "Viewer";
+  const selectedNodePermissions = useNodePermissions(selectedNode);
+  const canEditCanvas = canEditWorkspace;
   const gridLines = buildGridLines(
     dimensions.width,
     dimensions.height,
@@ -281,7 +303,14 @@ export default function CanvasPage() {
     const transformer = transformerRef.current;
     const stage = stageRef.current;
 
-    if (!transformer || !stage || !selectedNodeId || !selectedNode || !RESIZABLE_NODE_TYPES.has(selectedNode.type)) {
+    if (
+      !transformer ||
+      !stage ||
+      !selectedNodeId ||
+      !selectedNode ||
+      !RESIZABLE_NODE_TYPES.has(selectedNode.type) ||
+      !selectedNodePermissions.canResize
+    ) {
       transformer?.nodes([]);
       return;
     }
@@ -291,7 +320,13 @@ export default function CanvasPage() {
       transformer.nodes([selectedShape]);
       transformer.getLayer()?.batchDraw();
     }
-  }, [selectedNode, selectedNodeId]);
+  }, [selectedNode, selectedNodeId, selectedNodePermissions.canResize]);
+
+  useEffect(() => {
+    if (editingNodeId && !selectedNodePermissions.canEdit) {
+      setEditingNodeId(null);
+    }
+  }, [editingNodeId, selectedNodePermissions.canEdit]);
 
   useEffect(() => {
     const handleNodeCreated = (payload) => {
@@ -302,6 +337,27 @@ export default function CanvasPage() {
     };
 
     const handleNodeUpdated = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.node) {
+        dispatch(upsertNodeLocally(payload.node));
+      }
+    };
+
+    const handleNodeLocked = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.node) {
+        dispatch(upsertNodeLocally(payload.node));
+      }
+    };
+
+    const handleNodeUnlocked = (payload) => {
+      if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
+      if (payload?.node) {
+        dispatch(upsertNodeLocally(payload.node));
+      }
+    };
+
+    const handleNodePermissionsUpdated = (payload) => {
       if (payload?.workspaceId !== workspaceId || payload?.actorId === currentUser?.id) return;
       if (payload?.node) {
         dispatch(upsertNodeLocally(payload.node));
@@ -362,6 +418,9 @@ export default function CanvasPage() {
 
     on("canvas:node-created", handleNodeCreated);
     on("canvas:node-updated", handleNodeUpdated);
+    on("canvas:node-locked", handleNodeLocked);
+    on("canvas:node-unlocked", handleNodeUnlocked);
+    on("canvas:node-permissions-updated", handleNodePermissionsUpdated);
     on("canvas:node-deleted", handleNodeDeleted);
     on("canvas:drag", handleNodeDrag);
     on("canvas:resize", handleNodeResize);
@@ -372,6 +431,9 @@ export default function CanvasPage() {
     return () => {
       off("canvas:node-created", handleNodeCreated);
       off("canvas:node-updated", handleNodeUpdated);
+      off("canvas:node-locked", handleNodeLocked);
+      off("canvas:node-unlocked", handleNodeUnlocked);
+      off("canvas:node-permissions-updated", handleNodePermissionsUpdated);
       off("canvas:node-deleted", handleNodeDeleted);
       off("canvas:drag", handleNodeDrag);
       off("canvas:resize", handleNodeResize);
@@ -481,6 +543,12 @@ export default function CanvasPage() {
     workspaceId,
   ]);
 
+  useEffect(() => {
+    if (!canEditCanvas && activeTool !== "select") {
+      setActiveTool("select");
+    }
+  }, [activeTool, canEditCanvas]);
+
   // Wheel zoom
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();
@@ -582,6 +650,53 @@ export default function CanvasPage() {
     },
     [buildPresetData, dispatch, workspaceId]
   );
+
+  const handleEditorSave = useCallback(async () => {
+    if (!editingNodeId || savingTextRef.current) return;
+    savingTextRef.current = true;
+
+    // Cancel any in-flight live-typing broadcast so a stale value can't
+    // overwrite the just-committed correct text on remote clients
+    if (textEmitTimerRef.current) {
+      clearTimeout(textEmitTimerRef.current);
+      textEmitTimerRef.current = null;
+    }
+    pendingTextValueRef.current = null;
+
+
+    const node = nodesMap[editingNodeId];
+    if (!node) {
+      savingTextRef.current = false;
+      return;
+    }
+
+    if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canEdit) {
+      savingTextRef.current = false;
+      setEditingNodeId(null);
+      return;
+    }
+
+    const textKey = NODE_TEXT_KEYS[node.type];
+    const nextData = { ...(node.data || {}), [textKey]: editingValue };
+
+    const result = await dispatch(
+      updateCanvasNode({
+        workspaceId,
+        nodeId: editingNodeId,
+        payload: { data: nextData },
+      })
+    );
+
+    savingTextRef.current = false;
+
+    if (updateCanvasNode.rejected.match(result)) {
+      toast.error(result.payload || "Failed to update node");
+      return;
+    }
+
+    setEditingNodeId(null);
+  }, [dispatch, editingNodeId, editingValue, nodesMap, workspaceId, workspaceRole,currentUser?.id]);
+
 
   const handleStagePointerDown = useCallback(
     async (e) => {
@@ -699,16 +814,11 @@ export default function CanvasPage() {
       await commitCreationDraft(draft);
       setActiveTool("select");
     }
-  }, [activeTool, arrowDraft, canEditCanvas, commitCreationDraft, creationDraft, dispatch, workspaceId]);
+  }, [activeTool, arrowDraft, canEditCanvas, commitCreationDraft, creationDraft, dispatch, workspaceId, emit]);
 
   // Stage click → place node (if tool !== select)
   const handleStageClick = useCallback(
     (e) => {
-      if (!canEditCanvas) {
-        setSelectedNodeIds([]);
-        return;
-      }
-
       // Only fire on direct stage click (not on child shapes)
       if (e.target !== e.target.getStage()) {
         return;
@@ -724,11 +834,16 @@ export default function CanvasPage() {
         return;
       }
     },
-    [activeTool, canEditCanvas]
+    [activeTool]
   );
 
   const sendDragUpdate = useCallback(
     async (nodeId, x, y) => {
+      const node = nodesMap[nodeId];
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canMove) {
+        return;
+      }
+
       if (dragInFlightRef.current[nodeId]) {
         // isi node ke liye ek request pehle se chal rahi hai — sirf latest value yaad rakho
         dragPendingRef.current[nodeId] = { x, y };
@@ -753,21 +868,31 @@ export default function CanvasPage() {
         sendDragUpdate(nodeId, pending.x, pending.y);
       }
     },
-    [dispatch, workspaceId]
+    [dispatch, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
   const handleNodeDragEnd = useCallback(
     (nodeId, x, y) => {
+      const node = nodesMap[nodeId];
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canMove) {
+        return;
+      }
+
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
       emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
       sendDragUpdate(nodeId, x, y);
     },
-    [dispatch, emit, workspaceId, sendDragUpdate]
+    [dispatch, emit, nodesMap, sendDragUpdate, workspaceId, workspaceRole,currentUser?.id]
   );
 
 
 
   const handleNodeDragMove = useCallback(
     (nodeId, x, y) => {
+      const node = nodesMap[nodeId];
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canMove) {
+        return;
+      }
+
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
 
       const now = Date.now();
@@ -776,7 +901,7 @@ export default function CanvasPage() {
         emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
       }
     },
-    [dispatch, emit, workspaceId]
+    [dispatch, emit, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
 
   const handleNodeClick = useCallback(
@@ -802,12 +927,13 @@ export default function CanvasPage() {
     (nodeId) => {
       const node = nodesMap[nodeId];
       if (!node) return;
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canEdit) return;
 
       setSelectedNodeIds([nodeId]);
       setEditingNodeId(nodeId);
       setEditingValue(getNodeTextValue(node));
     },
-    [getNodeTextValue, nodesMap]
+    [getNodeTextValue, nodesMap, workspaceRole,currentUser?.id]
   );
 
 
@@ -817,6 +943,7 @@ export default function CanvasPage() {
     (nodeId, target) => {
       const node = nodesMap[nodeId];
       if (!node) return;
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canResize) return;
 
       const data = node.data || {};
       const scaleX = target.scaleX();
@@ -851,13 +978,14 @@ export default function CanvasPage() {
         delete transformEmitTimersRef.current[nodeId];
       }, 50); // ~20fps cap
     },
-    [dispatch, emit, nodesMap, workspaceId]
+    [dispatch, emit, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
 
   const handleNodeTransformEnd = useCallback(
     async (nodeId, target) => {
       const node = nodesMap[nodeId];
       if (!node) return;
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canResize) return;
 
       const data = node.data || {};
       const scaleX = target.scaleX();
@@ -903,13 +1031,14 @@ export default function CanvasPage() {
         toast.error(result.payload || "Failed to update node");
       }
     },
-    [dispatch, emit, nodesMap, workspaceId]
+    [dispatch, emit, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
 
   const handleArrowEndpointDragMove = useCallback(
     (nodeId, endpoint, localX, localY) => {
       const node = nodesMap[nodeId];
       if (!node) return;
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canResize) return;
 
       const data = node.data || {};
       const currentDx = data.dx ?? 150;
@@ -928,15 +1057,17 @@ export default function CanvasPage() {
         dispatch(updateNodeDataLocally({ nodeId, patch: { dx: nextDx, dy: nextDy } }));
       }
     },
-    [dispatch, isShiftPressed, nodesMap]
+    [dispatch, isShiftPressed, nodesMap, workspaceRole,currentUser?.id]
   );
 
   const handleArrowEndpointDragEnd = useCallback(
     async (nodeId, endpoint, localX, localY) => {
+      const node = nodesMap[nodeId];
+      if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canResize) return;
+
       handleArrowEndpointDragMove(nodeId, endpoint, localX, localY);
 
       // dispatch ke baad latest state se hi save karo (redux batching safe)
-      const node = nodesMap[nodeId];
       if (!node) return;
       const data = node.data || {};
 
@@ -962,7 +1093,7 @@ export default function CanvasPage() {
 
       emit("canvas:resize", { workspaceId, nodeId, ...payload });
     },
-    [dispatch, emit, handleArrowEndpointDragMove, isShiftPressed, nodesMap, workspaceId]
+    [dispatch, emit, handleArrowEndpointDragMove, isShiftPressed, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
 
   const latestNodesRef = useRef(nodesMap);
@@ -976,6 +1107,7 @@ export default function CanvasPage() {
   const handleInspectorChange = useCallback(
     (field, value) => {
       if (!selectedNode) return;
+      if (!selectedNodePermissions.canEdit) return;
 
       const nodeId = selectedNode.id;
 
@@ -1035,7 +1167,7 @@ export default function CanvasPage() {
         delete colorTimersRef.current[timerKey];
       }, 800);
     },
-    [dispatch, selectedNode, workspaceId]
+    [dispatch, selectedNode, selectedNodePermissions.canEdit, workspaceId, emit]
   );
 
 
@@ -1043,46 +1175,7 @@ export default function CanvasPage() {
   // Guards against double-commit when blur + Enter + selection-change fire close together
   const savingTextRef = useRef(false);
 
-  const handleEditorSave = useCallback(async () => {
-    if (!editingNodeId || savingTextRef.current) return;
-    savingTextRef.current = true;
-
-    // Cancel any in-flight live-typing broadcast so a stale value can't
-    // overwrite the just-committed correct text on remote clients
-    if (textEmitTimerRef.current) {
-      clearTimeout(textEmitTimerRef.current);
-      textEmitTimerRef.current = null;
-    }
-    pendingTextValueRef.current = null;
-
-
-    const node = nodesMap[editingNodeId];
-    if (!node) {
-      savingTextRef.current = false;
-      return;
-    }
-
-    const textKey = NODE_TEXT_KEYS[node.type];
-    const nextData = { ...(node.data || {}), [textKey]: editingValue };
-
-    const result = await dispatch(
-      updateCanvasNode({
-        workspaceId,
-        nodeId: editingNodeId,
-        payload: { data: nextData },
-      })
-    );
-
-    savingTextRef.current = false;
-
-    if (updateCanvasNode.rejected.match(result)) {
-      toast.error(result.payload || "Failed to update node");
-      return;
-    }
-
-    setEditingNodeId(null);
-  }, [dispatch, editingNodeId, editingValue, nodesMap, workspaceId]);
-
+  
   // Commit whatever was being typed whenever selection moves away from the node being edited
   const prevEditingNodeIdRef = useRef(null);
 
@@ -1121,6 +1214,12 @@ export default function CanvasPage() {
   const handleDeleteSelected = useCallback(async () => {
     if (!selectedNodeIds.length) return;
     for (const nodeId of selectedNodeIds) {
+      const node = nodesMap[nodeId];
+      const permissions = computeNodePermissions(node, workspaceRole,currentUser?.id);
+      if (!permissions.canDelete) {
+        toast.error("You don't have permission to delete this node");
+        return;
+      }
       const result = await dispatch(deleteCanvasNode({ workspaceId, nodeId }));
       if (deleteCanvasNode.rejected.match(result)) {
         toast.error(result.payload || "Failed to delete node");
@@ -1129,14 +1228,106 @@ export default function CanvasPage() {
     }
 
     setSelectedNodeIds([]);
-  }, [dispatch, selectedNodeIds, workspaceId]);
+  }, [dispatch, nodesMap, selectedNodeIds, workspaceId, workspaceRole,currentUser?.id]);
 
+  const handleToggleSelectedNodeLock = useCallback(async () => {
+    if (!selectedNode?.id || !isLead) return;
+
+    const thunk = selectedNode.locked ? unlockCanvasNode : lockCanvasNode;
+    const result = await dispatch(thunk({ workspaceId, nodeId: selectedNode.id }));
+    if (thunk.rejected.match(result)) {
+      toast.error(result.payload || "Failed to update lock state");
+    }
+  }, [dispatch, isLead, selectedNode, workspaceId]);
+
+// Fetch members once when the dialog is opened
+useEffect(() => {
+  if (isPermissionsOpen && workspaceId) {
+    dispatch(fetchWorkspaceMembers(workspaceId));
+  }
+}, [isPermissionsOpen, workspaceId, dispatch]);
+
+// Seed the draft selection from the currently-selected node whenever the dialog opens
+useEffect(() => {
+  if (isPermissionsOpen && selectedNode) {
+    setDraftAllowedUserIds(selectedNode.allowedUserIds || []);
+  }
+}, [isPermissionsOpen, selectedNode]);
+
+const toggleDraftPermission = useCallback((userId) => {
+  setDraftAllowedUserIds((prev) =>
+    prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+  );
+}, []);
+
+const handleSavePermissions = useCallback(async () => {
+  if (!selectedNode?.id || !isLead) return;
+  setSavingPermissions(true);
+
+  const result = await dispatch(
+    updateCanvasNodePermissions({
+      workspaceId,
+      nodeId: selectedNode.id,
+      payload: { allowedUserIds: draftAllowedUserIds },
+    })
+  );
+
+  setSavingPermissions(false);
+
+  if (updateCanvasNodePermissions.rejected.match(result)) {
+    toast.error(result.payload || "Failed to update permissions");
+    return;
+  }
+
+  toast.success("Permissions updated");
+  setIsPermissionsOpen(false);
+}, [dispatch, draftAllowedUserIds, isLead, selectedNode, workspaceId]);
+
+//  const handlePermissionsChange = useCallback(
+//   async (userId, checked) => {
+//     if (!selectedNode?.id || !isLead) return;
+
+//     const currentUserIds = Array.isArray(selectedNode.allowedUserIds) ? selectedNode.allowedUserIds : [];
+//     const nextUserIds = checked
+//       ? Array.from(new Set([...currentUserIds, userId]))
+//       : currentUserIds.filter((id) => id !== userId);
+
+//     const result = await dispatch(
+//       updateCanvasNodePermissions({
+//         workspaceId,
+//         nodeId: selectedNode.id,
+//         payload: { allowedUserIds: nextUserIds },
+//       })
+//     );
+
+//     if (updateCanvasNodePermissions.rejected.match(result)) {
+//       toast.error(result.payload || "Failed to update permissions");
+//     }
+//   },
+//   [dispatch, isLead, selectedNode, workspaceId]
+// );
   const renderNode = (node) => {
+    const permissions = computeNodePermissions(node, workspaceRole,currentUser?.id);
     const commonProps = {
       node,
       isSelected: selectedNodeIds.includes(node.id),
+      permissions,
       onDragEnd: handleNodeDragEnd,
       onClick: handleNodeClick,
+      onMouseEnter: () => {
+        setHoveredNodeId(node.id);
+        const stage = stageRef.current;
+        if (stage) {
+          stage.container().style.cursor = permissions.canEdit ? "move" : "not-allowed";
+        }
+      },
+      onMouseLeave: () => {
+        setHoveredNodeId((current) => (current === node.id ? null : current));
+        const stage = stageRef.current;
+        if (stage) {
+          stage.container().style.cursor = activeTool === "select" ? "grab" : "crosshair";
+        }
+      },
     };
 
     switch (node.type) {
@@ -1150,6 +1341,15 @@ export default function CanvasPage() {
       default: return null;
     }
   };
+
+  const hoveredNode = hoveredNodeId ? nodesMap[hoveredNodeId] : null;
+  const hoveredPermissions = hoveredNode ? computeNodePermissions(hoveredNode, workspaceRole,currentUser?.id) : null;
+  const hoveredBounds = hoveredNode ? getNodeBounds(hoveredNode) : null;
+  const hoveredTooltip = hoveredNode && hoveredBounds && (!hoveredPermissions?.canEdit || hoveredPermissions?.isLocked)
+    ? hoveredPermissions.isLocked
+      ? "Locked node"
+      : "You don't have permission to edit this node."
+    : null;
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[color:var(--bg-primary)]">
@@ -1451,6 +1651,18 @@ export default function CanvasPage() {
         </div>
       )}
 
+      {hoveredTooltip && hoveredBounds && (
+        <div
+          className="pointer-events-none absolute z-30 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3 py-2 text-xs text-[color:var(--text-primary)] shadow-lg"
+          style={{
+            left: `${hoveredBounds.x * viewport.scale + viewport.x}px`,
+            top: `${Math.max(8, hoveredBounds.y * viewport.scale + viewport.y - 36)}px`,
+          }}
+        >
+          {hoveredTooltip}
+        </div>
+      )}
+
       {editingNodeId && selectedNodeBounds && (
         <div
           className="absolute z-30 rounded-xl border border-[color:var(--accent)] bg-[color:var(--bg-surface)] shadow-2xl"
@@ -1491,9 +1703,89 @@ export default function CanvasPage() {
       )}
 
       {/* Toolbar */}
-      <CanvasToolbar activeTool={activeTool} onToolChange={setActiveTool} activeColor={activeColor} onColorChange={setActiveColor} />
+      <CanvasToolbar
+        activeTool={activeTool}
+        onToolChange={setActiveTool}
+        activeColor={activeColor}
+        onColorChange={setActiveColor}
+        canEdit={canEditCanvas}
+        selectedNode={selectedNode}
+        isLead={isLead}
+        onToggleLock={handleToggleSelectedNodeLock}
+        onOpenPermissions={() => setIsPermissionsOpen(true)}
+      />
 
-      {/* Zoom indicator */}
+   <Dialog open={isPermissionsOpen} onOpenChange={setIsPermissionsOpen}>
+  <DialogContent className="max-w-md">
+    <DialogHeader>
+      <DialogTitle>Node permissions</DialogTitle>
+      <DialogDescription>
+        Choose which workspace members can edit this node. Leave everyone unchecked to allow all contributors.
+      </DialogDescription>
+    </DialogHeader>
+
+    <div className="max-h-72 space-y-1 overflow-y-auto py-2">
+      {members
+        .filter((member) => member.isOwner || member.role === "Lead")
+        .map((leadMember) => (
+          <div
+            key={leadMember.userId}
+            className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-[color:var(--text-secondary)]"
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-[color:var(--text-primary)]">{leadMember.name}</span>
+              <span className="text-xs">(Lead)</span>
+            </div>
+            <span className="text-xs italic">Always has access</span>
+          </div>
+        ))}
+
+      {members.filter((member) => member.role === "Contributor").length === 0 && (
+        <p className="px-3 py-4 text-center text-sm text-[color:var(--text-secondary)]">
+          No contributors in this workspace yet.
+        </p>
+      )}
+
+      {members
+        .filter((member) => member.role === "Contributor")
+        .map((member) => {
+          const isSelected = draftAllowedUserIds.includes(member.userId);
+          return (
+            <button
+              key={member.userId}
+              type="button"
+              onClick={() => toggleDraftPermission(member.userId)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-[color:var(--bg-primary)] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[color:var(--text-primary)]">{member.name}</span>
+                <span className="text-xs text-[color:var(--text-secondary)]">{member.email}</span>
+              </div>
+              <span
+                className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                  isSelected
+                    ? "bg-[color:var(--accent)] border-[color:var(--accent)]"
+                    : "border-[color:var(--border)]"
+                }`}
+              >
+                {isSelected && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
+              </span>
+            </button>
+          );
+        })}
+    </div>
+
+   <DialogFooter>
+  <Button variant="outline" onClick={() => setIsPermissionsOpen(false)} disabled={savingPermissions}>
+    Cancel
+  </Button>
+  <Button onClick={handleSavePermissions} disabled={savingPermissions}>
+    {savingPermissions ? "Saving..." : "Save"}
+  </Button>
+</DialogFooter>
+  </DialogContent>
+</Dialog>
+  {/* Zoom indicator */}
       <div className="absolute bottom-20 right-4 z-10 text-xs text-[color:var(--text-secondary)] bg-[color:var(--bg-surface)] border border-[color:var(--border)] rounded-lg px-2.5 py-1.5 shadow-sm font-mono">
         {Math.round(viewport.scale * 100)}%
       </div>

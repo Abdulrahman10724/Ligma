@@ -6,24 +6,28 @@ export default function ArrowNode({
   node,
   isSelected,
   canEdit = true,
+  permissions,
   onDragEnd,
   onDragMove,
   onClick,
   onDoubleClick,
   onEndpointDragMove,
   onEndpointDragEnd,
+  onMouseEnter,
+  onMouseLeave,
 }) {
   const { x, y, data = {} } = node;
   const dx = data.dx ?? 150;
   const dy = data.dy ?? 0;
   const stroke = data.color || "#6366F1";
+  const isLocked = Boolean(permissions?.isLocked);
 
   return (
     <Group
       id={`node-${node.id}`}
       x={x}
       y={y}
-      draggable={canEdit}
+      draggable={permissions?.canMove ?? canEdit}
       onDragStart={(e) => {
         if (e.target.name() === "endpoint-handle") return;
         e.cancelBubble = true;
@@ -39,7 +43,9 @@ export default function ArrowNode({
         onDragEnd(node.id, e.target.x(), e.target.y());
       }}
       onClick={() => onClick(node.id)}
-      onDblClick={() => onDoubleClick(node.id)}
+      onDblClick={() => permissions?.canEdit && onDoubleClick(node.id)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {/* Wider invisible hit-area so thin arrows are easy to click/select */}
       <Arrow
@@ -58,6 +64,7 @@ export default function ArrowNode({
         pointerLength={10}
         pointerWidth={8}
         listening={false}
+        opacity={isLocked ? 0.82 : 1}
       />
 
       {data.label && (
@@ -69,6 +76,20 @@ export default function ArrowNode({
           fontSize={11}
           fontFamily="Inter, system-ui, sans-serif"
           fill="#71717A"
+          align="center"
+          listening={false}
+        />
+      )}
+
+      {isLocked && (
+        <Text
+          x={dx / 2 - 28}
+          y={dy / 2 - 28}
+          width={56}
+          text="Locked"
+          fontSize={10}
+          fontFamily="Inter, system-ui, sans-serif"
+          fill="#991B1B"
           align="center"
           listening={false}
         />

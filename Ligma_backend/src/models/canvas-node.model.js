@@ -7,6 +7,8 @@ const COLLECTION_NAME = "canvasNodes";
 const getCanvasNodesCollection = () => getCollection(COLLECTION_NAME);
 
 const VALID_NODE_TYPES = ["sticky", "text", "rectangle", "circle", "arrow"];
+// Empty array = unrestricted: every Contributor (+ Lead, always) can edit.
+const DEFAULT_ALLOWED_USER_IDS = [];
 
 const ensureCanvasNodeIndexes = async () => {
   await getCanvasNodesCollection().createIndex({ workspaceId: 1, createdAt: -1 });
@@ -21,6 +23,12 @@ const sanitizeCanvasNode = (node) => {
     id: node._id ? node._id.toString() : node.id,
     workspaceId: node.workspaceId ? node.workspaceId.toString() : node.workspaceId,
     createdById: node.createdById ? node.createdById.toString() : node.createdById,
+    lockedBy: node.lockedBy ? node.lockedBy.toString() : null,
+    locked: Boolean(node.locked),
+    lockedAt: node.lockedAt ? new Date(node.lockedAt).toISOString() : null,
+    allowedUserIds: Array.isArray(node.allowedUserIds)
+      ? [...new Set(node.allowedUserIds.map((id) => id.toString()))]
+      : [...DEFAULT_ALLOWED_USER_IDS],
   };
 };
 
@@ -42,6 +50,10 @@ const createNode = async ({ workspaceId, createdById, type, x, y, data }) => {
     x,
     y,
     data: data || {},
+    locked: false,
+    lockedBy: null,
+    lockedAt: null,
+    allowedUserIds: [...DEFAULT_ALLOWED_USER_IDS],
     createdAt: now,
     updatedAt: now,
   };
@@ -69,6 +81,7 @@ const deleteNode = async (nodeId, workspaceId) =>
 export {
   COLLECTION_NAME,
   VALID_NODE_TYPES,
+  DEFAULT_ALLOWED_USER_IDS,
   ensureCanvasNodeIndexes,
   sanitizeCanvasNode,
   findNodesByWorkspace,
@@ -81,6 +94,7 @@ export {
 export default {
   COLLECTION_NAME,
   VALID_NODE_TYPES,
+  DEFAULT_ALLOWED_USER_IDS,
   ensureCanvasNodeIndexes,
   sanitizeCanvasNode,
   findNodesByWorkspace,

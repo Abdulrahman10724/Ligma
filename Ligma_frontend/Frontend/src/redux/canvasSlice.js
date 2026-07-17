@@ -43,6 +43,39 @@ export const updateCanvasNode = createAsyncThunk(
   }
 );
 
+export const lockCanvasNode = createAsyncThunk(
+  "canvas/lockNode",
+  async ({ workspaceId, nodeId }, { rejectWithValue }) => {
+    try {
+      return await canvasNodeService.lock(workspaceId, nodeId);
+    } catch (error) {
+      return rejectWithValue(error?.message || "Unable to lock node");
+    }
+  }
+);
+
+export const unlockCanvasNode = createAsyncThunk(
+  "canvas/unlockNode",
+  async ({ workspaceId, nodeId }, { rejectWithValue }) => {
+    try {
+      return await canvasNodeService.unlock(workspaceId, nodeId);
+    } catch (error) {
+      return rejectWithValue(error?.message || "Unable to unlock node");
+    }
+  }
+);
+
+export const updateCanvasNodePermissions = createAsyncThunk(
+  "canvas/updateNodePermissions",
+  async ({ workspaceId, nodeId, payload }, { rejectWithValue }) => {
+    try {
+      return await canvasNodeService.updatePermissions(workspaceId, nodeId, payload);
+    } catch (error) {
+      return rejectWithValue(error?.message || "Unable to update node permissions");
+    }
+  }
+);
+
 export const deleteCanvasNode = createAsyncThunk(
   "canvas/deleteNode",
   async ({ workspaceId, nodeId }, { rejectWithValue }) => {
@@ -132,6 +165,24 @@ const canvasSlice = createSlice({
         state.error = action.payload || "Unable to create node";
       })
       .addCase(updateCanvasNode.fulfilled, (state, action) => {
+        const node = action.payload?.data?.node;
+        if (node) {
+          state.nodes[node.id] = node;
+        }
+      })
+      .addCase(lockCanvasNode.fulfilled, (state, action) => {
+        const node = action.payload?.data?.node;
+        if (node) {
+          state.nodes[node.id] = node;
+        }
+      })
+      .addCase(unlockCanvasNode.fulfilled, (state, action) => {
+        const node = action.payload?.data?.node;
+        if (node) {
+          state.nodes[node.id] = node;
+        }
+      })
+      .addCase(updateCanvasNodePermissions.fulfilled, (state, action) => {
         const node = action.payload?.data?.node;
         if (node) {
           state.nodes[node.id] = node;

@@ -3,6 +3,7 @@ import config from "../config/env.config.js";
 import { findUserById, sanitizeUser } from "../models/user.model.js";
 import { verifyAccessToken } from "../utils/jwt.util.js";
 import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "../services/member.service.js";
+import { assertNodeAccess } from "../services/canvas-node.service.js";
 import logger from "../utils/logger.util.js";
 
 let io;
@@ -170,7 +171,7 @@ const initSocket = (server) => {
           return;
         }
 
-        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+        await assertNodeAccess(workspaceId, socket.user.id, nodeId);
 
         socket.to(workspaceRoom(workspaceId)).emit("canvas:drag", {
           workspaceId,
@@ -190,7 +191,7 @@ const initSocket = (server) => {
           return;
         }
 
-        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+        await assertNodeAccess(workspaceId, socket.user.id, nodeId);
 
         socket.to(workspaceRoom(workspaceId)).emit("canvas:resize", {
           workspaceId,
@@ -212,7 +213,7 @@ const initSocket = (server) => {
           return;
         }
 
-        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+        await assertNodeAccess(workspaceId, socket.user.id, nodeId);
 
         socket.to(workspaceRoom(workspaceId)).emit("canvas:data", {
           workspaceId,
@@ -231,7 +232,7 @@ const initSocket = (server) => {
           return;
         }
 
-        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+        await assertNodeAccess(workspaceId, socket.user.id, nodeId);
 
         socket.to(workspaceRoom(workspaceId)).emit("canvas:text", {
           workspaceId,
@@ -250,7 +251,7 @@ const initSocket = (server) => {
           return;
         }
 
-        await assertWorkspaceEditAccess(workspaceId, socket.user.id);
+        await assertNodeAccess(workspaceId, socket.user.id, nodeId);
 
         socket.to(workspaceRoom(workspaceId)).emit("canvas:rotate", {
           workspaceId,

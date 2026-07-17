@@ -40,6 +40,28 @@ const updateNodeSchema = z.object({
     }),
 });
 
+const updateNodePermissionsSchema = z.object({
+  params: z.object({
+    workspaceId: workspaceIdParam,
+    nodeId: nodeIdParam,
+  }),
+  body: z.object({
+    allowedUserIds: z
+      .array(z.string().regex(/^[a-f0-9]{24}$/i, "Invalid member id"))
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "allowedUserIds must not contain duplicates",
+      }),
+    // Note: empty array [] is intentionally valid here — it means "unrestricted".
+  }),
+});
+
+  const lockNodeSchema = z.object({
+    params: z.object({
+      workspaceId: workspaceIdParam,
+      nodeId: nodeIdParam,
+    }),
+  });
+
 const deleteNodeSchema = z.object({
   params: z.object({
     workspaceId: workspaceIdParam,
@@ -47,6 +69,6 @@ const deleteNodeSchema = z.object({
   }),
 });
 
-export { listNodesSchema, createNodeSchema, updateNodeSchema, deleteNodeSchema };
+  export { listNodesSchema, createNodeSchema, updateNodeSchema, updateNodePermissionsSchema, lockNodeSchema, deleteNodeSchema };
 
-export default { listNodesSchema, createNodeSchema, updateNodeSchema, deleteNodeSchema };
+  export default { listNodesSchema, createNodeSchema, updateNodeSchema, updateNodePermissionsSchema, lockNodeSchema, deleteNodeSchema };

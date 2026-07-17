@@ -13,20 +13,33 @@ const HEIGHT = 160;
 const PADDING = 12;
 const CORNER_RADIUS = 10;
 
-export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, onClick, onDoubleClick, onTransform,onTransformEnd }) {
+export default function StickyNode({
+  node,
+  isSelected,
+  permissions,
+  onDragEnd,
+  onDragMove,
+  onClick,
+  onDoubleClick,
+  onTransform,
+  onTransformEnd,
+  onMouseEnter,
+  onMouseLeave,
+}) {
   const { x, y, data = {} } = node;
   const color = data.fill || STICKY_COLORS[data.color] || STICKY_COLORS.yellow;
   const text = data.text || "Double-click to edit";
   const textColor = data.textColor || "#18181B";
   const width = data.width || WIDTH;
   const height = data.height || HEIGHT;
+  const isLocked = Boolean(permissions?.isLocked);
 
   return (
     <Group
       id={`node-${node.id}`}
       x={x}
       y={y}
-      draggable
+      draggable={permissions?.canMove}
       onDragStart={(e) => { e.cancelBubble = true; }}
       onDragMove={(e) => {
         e.cancelBubble = true;
@@ -37,9 +50,11 @@ export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, on
         onDragEnd(node.id, e.target.x(), e.target.y());
       }}
       onClick={() => onClick(node.id)}
-      onDblClick={() => onDoubleClick(node.id)}
+      onDblClick={() => permissions?.canEdit && onDoubleClick(node.id)}
       onTransform={(e) => onTransform(node.id, e.target)}
-      onTransformEnd={(e) => onTransformEnd(node.id, e.target)}   
+      onTransformEnd={(e) => onTransformEnd(node.id, e.target)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
        >
       {/* Shadow */}
       <Rect
@@ -58,6 +73,7 @@ export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, on
         cornerRadius={CORNER_RADIUS}
         stroke={isSelected ? "#6366F1" : "transparent"}
         strokeWidth={isSelected ? 2 : 0}
+        opacity={isLocked ? 0.82 : 1}
       />
       {/* Text content */}
       <Text
@@ -72,6 +88,19 @@ export default function StickyNode({ node, isSelected, onDragEnd, onDragMove, on
         wrap="word"
         ellipsis
       />
+      {isLocked && (
+        <Text
+          x={width - 52}
+          y={8}
+          width={44}
+          text="Locked"
+          fontSize={10}
+          fontFamily="Inter, system-ui, sans-serif"
+          fill="#991B1B"
+          align="right"
+          listening={false}
+        />
+      )}
     </Group>
   );
 }

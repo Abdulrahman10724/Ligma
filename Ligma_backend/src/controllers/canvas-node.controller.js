@@ -2,6 +2,9 @@ import {
   createCanvasNode,
   deleteCanvasNode,
   listCanvasNodes,
+  lockCanvasNode,
+  unlockCanvasNode,
+  updateCanvasNodePermissions,
   updateCanvasNode,
 } from "../services/canvas-node.service.js";
 import { emitWorkspaceEvent } from "../socket/socket.service.js";
@@ -69,6 +72,59 @@ const deleteNodeHandler = async (req, res, next) => {
   }
 };
 
-export { listNodesHandler, createNodeHandler, updateNodeHandler, deleteNodeHandler };
+const lockNodeHandler = async (req, res, next) => {
+  try {
+    const node = await lockCanvasNode(req.params.workspaceId, req.user.id, req.params.nodeId);
 
-export default { listNodesHandler, createNodeHandler, updateNodeHandler, deleteNodeHandler };
+    emitWorkspaceEvent(req.params.workspaceId, "canvas:node-locked", {
+      workspaceId: req.params.workspaceId,
+      node,
+      actorId: req.user.id,
+    });
+
+    return sendSuccess(res, 200, "Canvas node locked successfully", { node });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const unlockNodeHandler = async (req, res, next) => {
+  try {
+    const node = await unlockCanvasNode(req.params.workspaceId, req.user.id, req.params.nodeId);
+
+    emitWorkspaceEvent(req.params.workspaceId, "canvas:node-unlocked", {
+      workspaceId: req.params.workspaceId,
+      node,
+      actorId: req.user.id,
+    });
+
+    return sendSuccess(res, 200, "Canvas node unlocked successfully", { node });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const updateNodePermissionsHandler = async (req, res, next) => {
+  try {
+    const node = await updateCanvasNodePermissions(
+      req.params.workspaceId,
+      req.user.id,
+      req.params.nodeId,
+      req.body.allowedUserIds
+    );
+
+    emitWorkspaceEvent(req.params.workspaceId, "canvas:node-permissions-updated", {
+      workspaceId: req.params.workspaceId,
+      node,
+      actorId: req.user.id,
+    });
+
+    return sendSuccess(res, 200, "Canvas node permissions updated successfully", { node });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export { listNodesHandler, createNodeHandler, updateNodeHandler, deleteNodeHandler, lockNodeHandler, unlockNodeHandler, updateNodePermissionsHandler };
+
+export default { listNodesHandler, createNodeHandler, updateNodeHandler, deleteNodeHandler, lockNodeHandler, unlockNodeHandler, updateNodePermissionsHandler };
