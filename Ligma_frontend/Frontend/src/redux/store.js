@@ -6,6 +6,7 @@ import memberReducer from "./memberSlice";
 import canvasReducer from "./canvasSlice";
 import taskReducer from "./taskSlice";
 import eventReducer from "./eventSlice";
+import replayReducer from "../replay/replaySlice";
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,8 @@ export const store = configureStore({
     canvas: canvasReducer,
     tasks: taskReducer,
     events: eventReducer,
+    // Phase 13 — Time Travel Replay: fully isolated from canvas/tasks/events.
+    replay: replayReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

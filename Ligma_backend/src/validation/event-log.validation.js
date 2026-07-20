@@ -23,12 +23,14 @@ const createEventLogSchema = z.object({
   }),
 });
 
+// Phase 13 – Time Travel Replay needs the full history in one shot; cap raised from
+// 500 -> 5000 so the replay engine can hydrate the entire event log without paginating.
 const listEventLogsSchema = z.object({
   params: z.object({
     workspaceId: workspaceIdParam,
   }),
   query: z.object({
-    limit: z.coerce.number().min(1).max(500).optional(),
+    limit: z.coerce.number().min(1).max(5000).optional(),
   }).optional(),
 });
 
