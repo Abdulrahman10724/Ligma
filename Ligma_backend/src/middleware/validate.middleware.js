@@ -5,15 +5,21 @@ const validate = (schema) => (req, res, next) => {
       query: req.query,
       params: req.params,
     });
-    
-    // Replace with validated data to ensure clean/parsed fields
+
+    // Replace with validated data to ensure clean/parsed fields.
+    // req.query is read-only in Express 5 (getter-only) — mutate its
+    // properties in place instead of reassigning the object itself.
     if (validated.body) req.body = validated.body;
-    if (validated.query) req.query = validated.query;
     if (validated.params) req.params = validated.params;
+    if (validated.query) {
+      for (const key of Object.keys(req.query)) {
+        delete req.query[key];
+      }
+      Object.assign(req.query, validated.query);
+    }
 
     next();
   } catch (error) {
-    // Format error to pass to centralized error handler
     const validationError = new Error("Validation Error");
     validationError.statusCode = 400;
     const issues = error.issues || error.errors || [];
