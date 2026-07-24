@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer, Path } from "react-konva";
@@ -36,6 +36,8 @@ import StickyNode from "../components/canvas/nodes/StickyNode";
 import TextNode from "../components/canvas/nodes/TextNode";
 import ShapeNode from "../components/canvas/nodes/ShapeNode";
 import ArrowNode from "../components/canvas/nodes/ArrowNode";
+import CanvasPresenceLayer from "../components/presence/CanvasPresenceLayer";
+import usePresenceZones from "../hooks/usePresenceZones";
 
 const GRID_SIZE = 40;
 const GRID_COLOR = "#E4E4E7";
@@ -111,10 +113,12 @@ function buildGridLines(stageWidth, stageHeight, scale, offsetX, offsetY) {
 export default function CanvasPage() {
   const { id: workspaceId } = useParams();
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { nodes: nodesMap, loading } = useSelector((state) => state.canvas);
   // const { activeWorkspace } = useSelector((state) => state.workspace);
   const { user: currentUser } = useSelector((state) => state.auth);
   const { workspaceRole, isLead, canEditWorkspace } = useWorkspaceRole();
+  const { items: zones, saving: zonesSaving, createZone, updateZone, removeZone } = usePresenceZones(workspaceId);
   // status
   const { emit, on, off } = useSocket({ workspaceId, autoJoin: false });
 
@@ -138,6 +142,9 @@ export default function CanvasPage() {
 const [savingPermissions, setSavingPermissions] = useState(false);
   const { list: members } = useSelector((state) => state.members);
   const [hoveredNodeId, setHoveredNodeId] = useState(null);
+  const [presenceUsers, setPresenceUsers] = useState([]);
+  const [localCursor, setLocalCursor] = useState(null);
+  const [focusedNodeId, setFocusedNodeId] = useState(null);
   const colorTimersRef = useRef({});
   const clipboardNodeRef = useRef(null);
   const dragEmitRef = useRef(0);
@@ -196,6 +203,7 @@ const [savingPermissions, setSavingPermissions] = useState(false);
 useEffect(() => {
   if (!workspaceId) return;
   dispatch(fetchCanvasNodes(workspaceId));
+  dispatch(fetchWorkspaceMembers(workspaceId));
   return () => {
     dispatch(clearCanvas());
   };
@@ -233,6 +241,18 @@ useEffect(() => {
     const textKey = NODE_TEXT_KEYS[node.type];
     return node.data?.[textKey] || "";
   }, []);
+
+  useEffect(() => {
+    const handlePresence = (payload) => {
+      if (payload?.workspaceId !== workspaceId) return;
+      setPresenceUsers(payload?.users || []);
+    };
+
+    on("workspace:presence", handlePresence);
+    return () => {
+      off("workspace:presence", handlePresence);
+    };
+  }, [off, on, workspaceId]);
 
   const getNodeBounds = useCallback((node) => {
     if (!node) return null;
@@ -742,6 +762,7 @@ useEffect(() => {
     if (!point) return;
 
     emitCursorPosition(point);
+    setLocalCursor(point);
 
     if (arrowDraft && activeTool === "arrow") {
       const rawDx = point.x - arrowDraft.start.x;
@@ -1342,6 +1363,31 @@ const handleSavePermissions = useCallback(async () => {
     }
   };
 
+  useEffect(() => {
+    const targetNodeId = searchParams.get("node");
+    if (!targetNodeId) return;
+
+    const targetNode = nodesMap[targetNodeId];
+    if (!targetNode) return;
+
+    const bounds = getNodeBounds(targetNode);
+    if (!bounds) return;
+
+    setSelectedNodeIds([targetNodeId]);
+    setFocusedNodeId(targetNodeId);
+    setViewport((current) => ({
+      ...current,
+      x: dimensions.width / 2 - (bounds.x + bounds.width / 2) * current.scale,
+      y: dimensions.height / 2 - (bounds.y + bounds.height / 2) * current.scale,
+    }));
+
+    const timer = setTimeout(() => setFocusedNodeId(null), 1800);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("node");
+    setSearchParams(nextParams, { replace: true });
+    return () => clearTimeout(timer);
+  }, [dimensions.height, dimensions.width, getNodeBounds, nodesMap, searchParams, setSearchParams]);
+
   const hoveredNode = hoveredNodeId ? nodesMap[hoveredNodeId] : null;
   const hoveredPermissions = hoveredNode ? computeNodePermissions(hoveredNode, workspaceRole,currentUser?.id) : null;
   const hoveredBounds = hoveredNode ? getNodeBounds(hoveredNode) : null;
@@ -1572,6 +1618,35 @@ const handleSavePermissions = useCallback(async () => {
           ))}
         </Layer>
       </Stage>
+
+      <CanvasPresenceLayer
+        viewport={viewport}
+        dimensions={dimensions}
+        members={members}
+        presenceUsers={presenceUsers}
+        remoteCursors={remoteCursors}
+        localCursor={localCursor}
+        currentUser={currentUser}
+        currentUserRole={workspaceRole}
+        canManage={canEditCanvas}
+        zones={zones}
+        saving={zonesSaving}
+        createZone={createZone}
+        updateZone={updateZone}
+        removeZone={removeZone}
+      />
+
+      {focusedNodeId && selectedNodeBounds && selectedNode?.id === focusedNodeId ? (
+        <div
+          className="pointer-events-none absolute z-20 rounded-3xl border-2 border-[color:var(--accent)] shadow-[0_0_0_8px_rgba(99,102,241,0.12)] animate-pulse"
+          style={{
+            left: `${selectedNodeBounds.x * viewport.scale + viewport.x - 10}px`,
+            top: `${selectedNodeBounds.y * viewport.scale + viewport.y - 10}px`,
+            width: `${selectedNodeBounds.width * viewport.scale + 20}px`,
+            height: `${selectedNodeBounds.height * viewport.scale + 20}px`,
+          }}
+        />
+      ) : null}
 
       {selectedNode && selectedNodeBounds && !editingNodeId && (
         <div
