@@ -5,6 +5,15 @@ import { verifyAccessToken } from "../utils/jwt.util.js";
 import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "../services/member.service.js";
 import { assertNodeAccess } from "../services/canvas-node.service.js";
 import logger from "../utils/logger.util.js";
+import {
+  registerChatHandlers,
+  cleanupChatForSocket,
+} from "./zonesChat.socket.js";
+import {
+  findZoneAtPoint,
+  updateUserZonePresence,
+  removeUserFromAllZones,
+} from "../services/zone-presence.service.js";
 
 let io;
 
@@ -58,6 +67,7 @@ const cleanupSocketRooms = (socket) => {
 
   for (const workspaceId of meta.joinedWorkspaces) {
     leaveWorkspacePresence(workspaceId, meta.user.id);
+    removeUserFromAllZones(io, workspaceId, meta.user.id);
     emitWorkspacePresence(workspaceId);
     socket.leave(workspaceRoom(workspaceId));
   }
@@ -139,13 +149,14 @@ const initSocket = (server) => {
       meta?.joinedWorkspaces.delete(workspaceId);
 
       leaveWorkspacePresence(workspaceId, socket.user.id);
+      removeUserFromAllZones(io, workspaceId, socket.user.id);
       emitWorkspacePresence(workspaceId);
 
       socket.leave(workspaceRoom(workspaceId));
       ack?.({ success: true });
     });
 
-    socket.on("workspace:cursor", ({ workspaceId, x, y } = {}) => {
+    socket.on("workspace:cursor", async ({ workspaceId, x, y } = {}) => {
       if (!workspaceId || typeof x !== "number" || typeof y !== "number") {
         return;
       }
@@ -163,6 +174,14 @@ const initSocket = (server) => {
         x,
         y,
       });
+
+      // Phase 14: figure out which zone the cursor is sitting INSIDE.
+      try {
+        const zoneId = await findZoneAtPoint(workspaceId, { x, y });
+        updateUserZonePresence(io, { workspaceId, user: socket.user, zoneId });
+      } catch {
+        // best-effort — presence works even if zones are not yet loaded
+      }
     });
 
     socket.on("canvas:drag", async ({ workspaceId, nodeId, x, y } = {}) => {
@@ -282,7 +301,17 @@ const initSocket = (server) => {
       }
     });
 
+    // Phase 14/15 — chat handlers (typing, channel room subscribe, message broadcasts)
+    registerChatHandlers(io, socket);
+
     socket.on("disconnect", (reason) => {
+      const meta = socketMetaById.get(socket.id);
+      if (meta?.joinedWorkspaces) {
+        for (const workspaceId of meta.joinedWorkspaces) {
+          removeUserFromAllZones(io, workspaceId, socket.user.id);
+        }
+      }
+      cleanupChatForSocket(socket);
       cleanupSocketRooms(socket);
       logger.info(`🔌 Socket disconnected: ${socket.id} | Reason: ${reason}`);
     });
