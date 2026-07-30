@@ -88,7 +88,13 @@ const createTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null)
 const updateTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null) => {
   await ensureIndexes();
   const existing = await findTaskByNodeId(workspaceId, nodeId);
-  if (!existing) return null;
+
+  // Agar node ke liye abhi tak koi task nahi bana (e.g. node placeholder text
+  // ke saath bana tha isliye create-time par classify skip hua tha), toh
+  // ab reclassify hone par task ko yahin bana do — silently drop mat karo.
+  if (!existing) {
+    return createTaskForNode(workspaceId, nodeId, data, actorId);
+  }
 
   const fields = {};
   const allowed = ["title", "description", "status", "assigneeId", "dueDate", "priority", "order", "metadata", "type"];
@@ -122,7 +128,6 @@ const updateTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null)
   }
   return sanitized;
 };
-
 const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
   await ensureIndexes();
   const existing = await findTaskByNodeId(workspaceId, nodeId);

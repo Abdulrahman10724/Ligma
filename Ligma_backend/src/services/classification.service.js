@@ -2,7 +2,15 @@ import { extractReferences } from "../utils/regex.util.js";
 import { classifyWithOpenRouter } from "./ai.service.js";
 import logger from "../utils/logger.util.js";
 
-const PLACEHOLDERS = ["Double click to edit", "Click to edit", "Untitled", ""];
+const PLACEHOLDERS = [
+  "New note",
+  "Text block",
+  "Double click to edit",
+  "Double-click to edit",
+  "Click to edit",
+  "Untitled",
+  "",
+];
 
 const parseTitleAndDescription = (text) => {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -12,33 +20,36 @@ const parseTitleAndDescription = (text) => {
 };
 
 const classifyNodeContent = async (rawText) => {
+  // References/emails are detected across the WHOLE text (title + description),
+  // so a link anywhere in the node still produces a Reference entry —
+  // this is independent of and additive to the title-based category below.
   const { references, emails, cleanedText } = extractReferences(rawText || "");
 
   logger.info(`classification.service: rawText='${String(rawText).slice(0, 200)}' cleaned='${String(cleanedText).slice(0, 200)}' refs=${(references || []).length} emails=${(emails || []).length}`);
 
-  // Use rawText for placeholder detection (cleanedText may be empty if the whole
-  // content was a URL, which would incorrectly skip classification)
   const textForPlaceholderCheck = (rawText || "").trim();
   if (!textForPlaceholderCheck || PLACEHOLDERS.includes(textForPlaceholderCheck)) {
     logger.info(`classification.service: skipping classification due to placeholder/empty`);
     return { classification: null, references, emails, title: "", description: "" };
   }
 
-  // ── Parse title/description from the ORIGINAL rawText so that URLs/emails
-  //    remain in the description as the user typed them.
-  //    cleanedText (URLs stripped) is only used as input to the AI so it can
-  //    focus on natural-language intent rather than raw URLs.
+  // Title = first line, Description = everything after — the description
+  // must NEVER influence which category (Action/Decision/Information) the
+  // node lands in; only the title's intent decides the category.
   const { title, description } = parseTitleAndDescription(rawText);
 
-  // Skip AI call if there's no meaningful text content even after stripping refs
-  if (!cleanedText || cleanedText.length < 3) {
-    // Still may have references — return them with the original title/description
+  // Strip any URLs out of the TITLE ONLY before sending to the AI, so the
+  // model focuses on the natural-language intent of the title alone.
+  const titleForClassification = extractReferences(title || "").cleanedText;
+
+  if (!titleForClassification || titleForClassification.length < 3) {
+    // No meaningful title to classify — references/description still returned as-is
     return { classification: null, references, emails, title, description };
   }
 
   try {
-    const cls = await classifyWithOpenRouter(cleanedText);
-    logger.info(`classification.service: ai returned='${String(cls)}'`);
+    const cls = await classifyWithOpenRouter(titleForClassification);
+    logger.info(`classification.service: ai returned='${String(cls)}' (based on title only: '${titleForClassification}')`);
     return { classification: cls, references, emails, title, description };
   } catch (err) {
     logger.warn("classification failed", err?.message || err);
