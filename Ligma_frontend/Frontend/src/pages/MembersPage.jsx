@@ -4,8 +4,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { Users, UserMinus, ChevronDown, MailOpen, Clock, Loader2 } from "lucide-react";
 
-import { fetchWorkspaceMembers, changeMemberRole, removeMember, fetchPendingInvitations } from "../redux/memberSlice";
-import { Button } from "../components/ui/button";
+import {
+  fetchWorkspaceMembers,
+  changeMemberRole,
+  removeMember,
+  fetchPendingInvitations,
+  setMemberRoleLocally,
+} from "../redux/memberSlice"; import { Button } from "../components/ui/button";
 import InviteMemberDialog from "../components/invitations/InviteMemberDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/ui/dropdown-menu";
 
@@ -92,13 +97,24 @@ export default function MembersPage() {
   }, [dispatch, workspaceId, isCurrentUserLead]);
 
   const handleRoleChange = async (userId, role) => {
+    const previousMember = members.find((m) => m.userId === userId);
+    const previousRole = previousMember?.role;
+
+    // Optimistic UI — reflect the change immediately.
+    dispatch(setMemberRoleLocally({ userId, role }));
+
     const result = await dispatch(changeMemberRole({ workspaceId, userId, role }));
+
     if (changeMemberRole.fulfilled.match(result)) {
       toast.success("Role updated");
     } else {
+      // Rollback on failure.
+      if (previousRole) {
+        dispatch(setMemberRoleLocally({ userId, role: previousRole }));
+      }
       toast.error(result.payload || "Failed to update role");
     }
-  };
+  }; 
 
   const handleRemove = async () => {
     if (!confirmRemove) return;

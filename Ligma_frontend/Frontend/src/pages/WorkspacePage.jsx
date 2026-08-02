@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useParams } from "react-router-dom";
+import { NavLink, Outlet, useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "sonner";
 import { LayoutDashboard, Milestone, MessageSquare, Users, History, Settings, LogOut } from "lucide-react";
 
-import { fetchWorkspaceById } from "../redux/workspaceSlice";
+import { fetchWorkspaceById, clearActiveWorkspace } from "../redux/workspaceSlice";
+import { clearMembers, setMemberRoleLocally, removeMemberLocally } from "../redux/memberSlice";
 import AccountMenu from "../components/layout/AccountMenu";
 import LogoutButton from "../components/layout/LogoutButton";
 import InvitationInboxMenu from "../components/layout/InvitationInboxMenu";
@@ -12,7 +14,9 @@ import useSocket from "../hooks/useSocket";
 export default function WorkspacePage() {
   const { id } = useParams();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { activeWorkspace } = useSelector((state) => state.workspace);
+  const { user: currentUser } = useSelector((state) => state.auth);
   const { status, on, off } = useSocket({ workspaceId: id, autoJoin: true });
   const [presenceUsers, setPresenceUsers] = useState([]);
 
@@ -33,6 +37,42 @@ export default function WorkspacePage() {
       off("workspace:presence", handlePresence);
     };
   }, [id, on, off]);
+ 
+
+  // Issue 2 — keep member roles synced across every connected client in real time.
+  useEffect(() => {
+    const handleRoleUpdated = (payload) => {
+      if (payload?.workspaceId !== id || !payload?.member) return;
+      dispatch(setMemberRoleLocally({ userId: payload.member.userId, role: payload.member.role }));
+    };
+
+    on("member:role-updated", handleRoleUpdated);
+    return () => {
+      off("member:role-updated", handleRoleUpdated);
+    };
+  }, [dispatch, id, on, off]);
+
+  // Issue 3 — removed member gets kicked out immediately; everyone else's list updates live.
+  useEffect(() => {
+    const handleMemberRemoved = (payload) => {
+      if (payload?.workspaceId !== id || !payload?.userId) return;
+
+      if (payload.userId === currentUser?.id) {
+        toast.error("You have been removed from this workspace.");
+        dispatch(clearActiveWorkspace());
+        dispatch(clearMembers());
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      dispatch(removeMemberLocally(payload.userId));
+    };
+
+    on("member:removed", handleMemberRemoved);
+    return () => {
+      off("member:removed", handleMemberRemoved);
+    };
+  }, [currentUser?.id, dispatch, id, navigate, on, off]);
 
   const navigation = [
     { name: "Canvas", href: `/workspace/${id}/canvas`, icon: LayoutDashboard },
@@ -59,10 +99,9 @@ export default function WorkspacePage() {
                   key={item.name}
                   to={item.href}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive
-                        ? "bg-[color:var(--bg-primary)] text-[color:var(--accent)] border-l-4 border-[color:var(--accent)]"
-                        : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-primary)] hover:text-[color:var(--text-primary)]"
+                    `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
+                      ? "bg-[color:var(--bg-primary)] text-[color:var(--accent)] border-l-4 border-[color:var(--accent)]"
+                      : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-primary)] hover:text-[color:var(--text-primary)]"
                     }`
                   }
                 >

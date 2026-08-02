@@ -5,7 +5,7 @@ import {
   removeWorkspaceMember,
 } from "../services/member.service.js";
 import { sendSuccess } from "../utils/api-response.util.js";
-
+import { emitWorkspaceEvent } from "../socket/socket.service.js";
 const listMembersHandler = async (req, res, next) => {
   try {
     const members = await listWorkspaceMembers(req.params.workspaceId, req.user.id);
@@ -23,6 +23,13 @@ const changeMemberRoleHandler = async (req, res, next) => {
       req.body.role,
       req.user.id
     );
+
+    emitWorkspaceEvent(req.params.workspaceId, "member:role-updated", {
+      workspaceId: req.params.workspaceId,
+      member,
+      actorId: req.user.id,
+    });
+
     return sendSuccess(res, 200, "Member role updated successfully", { member });
   } catch (error) {
     return next(error);
@@ -32,6 +39,13 @@ const changeMemberRoleHandler = async (req, res, next) => {
 const removeMemberHandler = async (req, res, next) => {
   try {
     await removeWorkspaceMember(req.params.workspaceId, req.params.userId, req.user.id);
+
+    emitWorkspaceEvent(req.params.workspaceId, "member:removed", {
+      workspaceId: req.params.workspaceId,
+      userId: req.params.userId,
+      actorId: req.user.id,
+    });
+
     return sendSuccess(res, 200, "Member removed successfully");
   } catch (error) {
     return next(error);

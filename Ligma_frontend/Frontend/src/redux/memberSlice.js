@@ -64,6 +64,17 @@ const memberSlice = createSlice({
       state.pendingInvitations = [];
       state.error = null;
     },
+    // Optimistic role change — applied instantly, rolled back on failure.
+    setMemberRoleLocally(state, action) {
+      const { userId, role } = action.payload || {};
+      if (!userId || !role) return;
+      state.list = state.list.map((m) => (m.userId === userId ? { ...m, role } : m));
+    },
+    removeMemberLocally(state, action) {
+      const userId = action.payload;
+      if (!userId) return;
+      state.list = state.list.filter((m) => m.userId !== userId);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -113,6 +124,5 @@ const memberSlice = createSlice({
   },
 });
 
-export const { clearMembers } = memberSlice.actions;
-
+export const { clearMembers, setMemberRoleLocally, removeMemberLocally } = memberSlice.actions;
 export default memberSlice.reducer;
