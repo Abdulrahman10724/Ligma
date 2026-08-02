@@ -17,6 +17,7 @@ export default function ShapeNode({
   onTransformEnd,
   onMouseEnter,
   onMouseLeave,
+  isEditing,
 }) {
   const { x, y, type, data = {} } = node;
   const isLocked = Boolean(permissions?.isLocked);
@@ -31,19 +32,19 @@ export default function ShapeNode({
     const { width, height, fill, stroke } = { ...DEFAULTS.rectangle, ...data };
     return (
       <Group
-  id={`node-${node.id}`}
-  x={x}
-  y={y}
-  draggable={permissions?.canMove}
-  onDragStart={(e) => { e.cancelBubble = true; }}
-  onDragMove={(e) => {
-    e.cancelBubble = true;
-    onDragMove(node.id, e.target.x(), e.target.y());
-  }}
-  onDragEnd={(e) => {
-    e.cancelBubble = true;
-    onDragEnd(node.id, e.target.x(), e.target.y());
-  }}
+        id={`node-${node.id}`}
+        x={x}
+        y={y}
+        draggable={permissions?.canMove}
+        onDragStart={(e) => { e.cancelBubble = true; }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          onDragMove(node.id, e.target.x(), e.target.y());
+        }}
+        onDragEnd={(e) => {
+          e.cancelBubble = true;
+          onDragEnd(node.id, e.target.x(), e.target.y());
+        }}
         onClick={handleClick}
         onDblClick={() => permissions?.canEdit && onDoubleClick(node.id)}
         onTransform={(e) => permissions?.canResize && onTransform(node.id, e.target)}
@@ -56,11 +57,11 @@ export default function ShapeNode({
           height={height}
           fill={fill}
           stroke={selectionStroke || stroke}
-          strokeWidth={selectionWidth || 1.5}
-          cornerRadius={8}
-          opacity={isLocked ? 0.82 : 1}
+          strokeWidth={selectionWidth || data.strokeWidth || 1.5}
+          cornerRadius={data.cornerRadius ?? 8}
+          opacity={isLocked ? 0.82 : data.opacity ?? 1}
         />
-        {data.label && (
+        {data.label && !isEditing && (
           <Text
             x={8}
             y={8}
@@ -110,22 +111,26 @@ export default function ShapeNode({
           radius={radius}
           fill={fill}
           stroke={selectionStroke || stroke}
-          strokeWidth={selectionWidth || 1.5}
-          opacity={isLocked ? 0.82 : 1}
+          strokeWidth={selectionWidth || data.strokeWidth || 1.5}
+          opacity={isLocked ? 0.82 : data.opacity ?? 1}
         />
-        {data.label && (
-          <Text
-            x={-radius + 8}
-            y={-10}
-            width={radius * 2 - 16}
-            text={data.label}
-            fontSize={13}
-            fontFamily="Inter, system-ui, sans-serif"
-            fill="#18181B"
-            align="center"
-            wrap="word"
-          />
-        )}
+        {data.label && !isEditing && (() => {
+          // Inscribed-square width keeps wrapped text inside the circle's edge.
+          const inscribedWidth = Math.max(24, radius * Math.SQRT2 - 16);
+          return (
+            <Text
+              x={-inscribedWidth / 2}
+              y={-9}
+              width={inscribedWidth}
+              text={data.label}
+              fontSize={13}
+              fontFamily="Inter, system-ui, sans-serif"
+              fill="#18181B"
+              align="center"
+              wrap="word"
+            />
+          );
+        })()}
         {isLocked && (
           <Text
             x={-38}

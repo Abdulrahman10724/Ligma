@@ -21,6 +21,7 @@ const createNodeSchema = z.object({
     x: z.number({ required_error: "x position is required" }),
     y: z.number({ required_error: "y position is required" }),
     data: z.record(z.unknown()).optional().default({}),
+    parentNodeId: z.string().regex(/^[a-f0-9]{24}$/i, "Invalid parent node id").nullable().optional(),
   }),
 });
 
@@ -34,6 +35,7 @@ const updateNodeSchema = z.object({
       x: z.number().optional(),
       y: z.number().optional(),
       data: z.record(z.unknown()).optional(),
+      parentNodeId: z.string().regex(/^[a-f0-9]{24}$/i, "Invalid parent node id").nullable().optional(),
     })
     .refine((body) => Object.keys(body).length > 0, {
       message: "At least one field must be provided for update",

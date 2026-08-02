@@ -1,4 +1,4 @@
-//canvas-node.service.js
+import { ObjectId } from "mongodb";
 import {
   VALID_NODE_TYPES,
   createNode,
@@ -26,11 +26,11 @@ import logger from "../utils/logger.util.js";
 // ── Text extraction — one map covers all current and future node types ────────
 // Add new node types here; the classification pipeline picks them up automatically.
 const NODE_TEXT_KEYS = {
-  sticky:    "text",
-  text:      "text",
+  sticky: "text",
+  text: "text",
   rectangle: "label",
-  circle:    "label",
-  arrow:     "label",
+  circle: "label",
+  arrow: "label",
 };
 
 /**
@@ -126,9 +126,9 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
   await ensureCanvasNodeIndexes();
   await assertWorkspaceEditAccess(workspaceId, userId);
 
-  const { type, x, y, data } = payload;
+  const { type, x, y, data, parentNodeId } = payload;
 
-  const node = await createNode({ workspaceId, createdById: userId, type, x, y, data });
+  const node = await createNode({ workspaceId, createdById: userId, type, x, y, data, parentNodeId });
   const sanitized = sanitizeCanvasNode(node);
 
   try {
@@ -189,12 +189,16 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
 const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
   const { existing } = await assertNodeAccess(workspaceId, userId, nodeId);
 
-  const allowedFields = ["x", "y", "data"];
+  const allowedFields = ["x", "y", "data", "parentNodeId"];
   const updateFields = {};
   for (const key of allowedFields) {
     if (payload[key] !== undefined) {
       updateFields[key] = payload[key];
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateFields, "parentNodeId")) {
+    updateFields.parentNodeId = updateFields.parentNodeId ? new ObjectId(updateFields.parentNodeId) : null;
   }
 
   const updated = await updateNode(nodeId, workspaceId, updateFields);
@@ -219,7 +223,7 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
   // Only re-classify when the text field was explicitly sent AND actually changed.
   // This skips drag/resize/color updates (they don't include the text field).
   const previousText = textKey ? (existing.data?.[textKey] || "") : "";
-  const nextText     = textKey ? (sanitized.data?.[textKey] || "") : "";
+  const nextText = textKey ? (sanitized.data?.[textKey] || "") : "";
   const textFieldWasUpdated = payload.data && textKey && Object.prototype.hasOwnProperty.call(payload.data, textKey);
   const textActuallyChanged = textFieldWasUpdated && nextText !== previousText;
 

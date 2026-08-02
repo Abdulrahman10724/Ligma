@@ -26,6 +26,7 @@ const sanitizeCanvasNode = (node) => {
     lockedBy: node.lockedBy ? node.lockedBy.toString() : null,
     locked: Boolean(node.locked),
     lockedAt: node.lockedAt ? new Date(node.lockedAt).toISOString() : null,
+    parentNodeId: node.parentNodeId ? node.parentNodeId.toString() : null,
     allowedUserIds: Array.isArray(node.allowedUserIds)
       ? [...new Set(node.allowedUserIds.map((id) => id.toString()))]
       : [...DEFAULT_ALLOWED_USER_IDS],
@@ -40,8 +41,7 @@ const findNodesByWorkspace = async (workspaceId) =>
 
 const findNodeById = async (nodeId) =>
   getCanvasNodesCollection().findOne({ _id: new ObjectId(nodeId) });
-
-const createNode = async ({ workspaceId, createdById, type, x, y, data }) => {
+const createNode = async ({ workspaceId, createdById, type, x, y, data, parentNodeId = null }) => {
   const now = new Date();
   const nodeDocument = {
     workspaceId: new ObjectId(workspaceId),
@@ -54,6 +54,7 @@ const createNode = async ({ workspaceId, createdById, type, x, y, data }) => {
     lockedBy: null,
     lockedAt: null,
     allowedUserIds: [...DEFAULT_ALLOWED_USER_IDS],
+    parentNodeId: parentNodeId ? new ObjectId(parentNodeId) : null,
     createdAt: now,
     updatedAt: now,
   };
@@ -62,7 +63,6 @@ const createNode = async ({ workspaceId, createdById, type, x, y, data }) => {
 
   return { ...nodeDocument, _id: result.insertedId };
 };
-
 const updateNode = async (nodeId, workspaceId, updateFields) => {
   const now = new Date();
   return getCanvasNodesCollection().findOneAndUpdate(

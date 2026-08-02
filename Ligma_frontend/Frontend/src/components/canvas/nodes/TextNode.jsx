@@ -16,6 +16,7 @@ export default function TextNode({
   onTransformEnd,
   onMouseEnter,
   onMouseLeave,
+  isEditing,
 }) {
   const { x, y, data = {} } = node;
   const text = data.text ?? "Text block";
@@ -60,17 +61,19 @@ export default function TextNode({
           dash={[4, 3]}
         />
       )}
-      <Text
-        x={PADDING}
-        y={PADDING}
-        width={width - PADDING * 2}
-        height={height - PADDING * 2}
-        text={text}
-        fontSize={fontSize}
-        fontFamily="Inter, system-ui, sans-serif"
-        fill={color}
-        wrap="word"
-      />
+ {!isEditing && (
+        <Text
+          x={PADDING}
+          y={PADDING}
+          width={width - PADDING * 2}
+          height={height - PADDING * 2}
+          text={text}
+          fontSize={fontSize}
+          fontFamily="Inter, system-ui, sans-serif"
+          fill={color}
+          wrap="word"
+        />
+      )}
       {isLocked && (
         <Text
           x={width - 52}

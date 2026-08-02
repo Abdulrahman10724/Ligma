@@ -3,7 +3,8 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer, Path } from "react-konva";
-import { HexColorPicker } from "react-colorful";
+import ToolStylePanel, { STROKE_COLORS, BACKGROUND_COLORS } from "../components/canvas/ToolStylePanel";
+import ColorSwatchPicker from "../components/canvas/ColorSwatchPicker";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
 import useSocket from "../hooks/useSocket";
@@ -47,9 +48,16 @@ const DARK_GRID_COLOR = "#2A2A31";
 const DEFAULT_NODE_DATA = {
   sticky: { color: "yellow", fill: "#FEF3C7", text: "New note", textColor: "#18181B", width: 200, height: 160 },
   text: { text: "Text block", fontSize: 16, color: "#18181B", width: 180, height: 48 },
-  rectangle: { width: 160, height: 100, fill: "#DBEAFE", stroke: "#3B82F6", label: "" },
-  circle: { radius: 60, fill: "#D1FAE5", stroke: "#10B981", label: "" },
+  rectangle: { width: 160, height: 100, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
+  circle: { radius: 60, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
   arrow: { dx: 150, dy: 0, color: "#6366F1", label: "" },
+};
+
+const MIN_DIMENSIONS = {
+  sticky: { width: 140, height: 110, maxAspect: 2.2 },
+  text: { width: 100, height: 32 },
+  rectangle: { width: 40, height: 32 },
+  circle: { width: 40, height: 40 },
 };
 
 const RESIZABLE_NODE_TYPES = new Set(["sticky", "text", "rectangle", "circle"]);
@@ -135,7 +143,11 @@ export default function CanvasPage() {
   const [creationDraft, setCreationDraft] = useState(null);
   const [remoteDraft, setRemoteDraft] = useState(null);
   const [isShiftPressed, setIsShiftPressed] = useState(false);
-  const [activeColor, setActiveColor] = useState("#FEF3C7");
+  const [toolStrokeColor, setToolStrokeColor] = useState("#1e1e1e");
+  const [toolFillColor, setToolFillColor] = useState("#FEF3C7");
+  const [toolStrokeWidth, setToolStrokeWidth] = useState(2);
+  const [toolEdges, setToolEdges] = useState("round");
+  const [toolOpacity, setToolOpacity] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [draftAllowedUserIds, setDraftAllowedUserIds] = useState([]);
@@ -148,6 +160,7 @@ const [savingPermissions, setSavingPermissions] = useState(false);
   const colorTimersRef = useRef({});
   const clipboardNodeRef = useRef(null);
   const dragEmitRef = useRef(0);
+  const draggingNodeRef = useRef(false);
   // const resizeEmitRef = useRef(0);
   const cursorEmitRef = useRef(0);
   const textEmitTimerRef = useRef(null);
@@ -594,7 +607,7 @@ useEffect(() => {
     });
   }, [viewport]);
 
-  const buildPresetData = useCallback(
+const buildPresetData = useCallback(
     (tool, size = {}) => {
       const width = Math.max(24, size.width || 0);
       const height = Math.max(24, size.height || 0);
@@ -602,7 +615,7 @@ useEffect(() => {
       if (tool === "sticky") {
         return {
           ...DEFAULT_NODE_DATA.sticky,
-          fill: activeColor,
+          fill: toolFillColor === "transparent" ? DEFAULT_NODE_DATA.sticky.fill : toolFillColor,
           textColor: DEFAULT_NODE_DATA.sticky.textColor,
           width: width || DEFAULT_NODE_DATA.sticky.width,
           height: height || DEFAULT_NODE_DATA.sticky.height,
@@ -612,6 +625,7 @@ useEffect(() => {
       if (tool === "text") {
         return {
           ...DEFAULT_NODE_DATA.text,
+          color: toolStrokeColor,
           width: width || DEFAULT_NODE_DATA.text.width,
           height: height || DEFAULT_NODE_DATA.text.height,
         };
@@ -620,8 +634,11 @@ useEffect(() => {
       if (tool === "rectangle") {
         return {
           ...DEFAULT_NODE_DATA.rectangle,
-          fill: activeColor,
-          stroke: activeColor,
+          fill: toolFillColor === "transparent" ? "rgba(0,0,0,0)" : toolFillColor,
+          stroke: toolStrokeColor,
+          strokeWidth: toolStrokeWidth,
+          cornerRadius: toolEdges === "round" ? 8 : 0,
+          opacity: toolOpacity,
           width: width || DEFAULT_NODE_DATA.rectangle.width,
           height: height || DEFAULT_NODE_DATA.rectangle.height,
         };
@@ -631,15 +648,24 @@ useEffect(() => {
         const radius = Math.max(24, Math.round(Math.max(width, height) / 2) || DEFAULT_NODE_DATA.circle.radius);
         return {
           ...DEFAULT_NODE_DATA.circle,
-          fill: activeColor,
-          stroke: activeColor,
+          fill: toolFillColor === "transparent" ? "rgba(0,0,0,0)" : toolFillColor,
+          stroke: toolStrokeColor,
+          strokeWidth: toolStrokeWidth,
+          opacity: toolOpacity,
           radius,
+        };
+      }
+
+      if (tool === "arrow") {
+        return {
+          ...DEFAULT_NODE_DATA.arrow,
+          color: toolStrokeColor,
         };
       }
 
       return DEFAULT_NODE_DATA[tool] || {};
     },
-    [activeColor]
+    [toolFillColor, toolStrokeColor, toolStrokeWidth, toolEdges, toolOpacity]
   );
 
   const commitCreationDraft = useCallback(
@@ -858,8 +884,8 @@ useEffect(() => {
     [activeTool]
   );
 
-  const sendDragUpdate = useCallback(
-    async (nodeId, x, y) => {
+ const sendDragUpdate = useCallback(
+    async (nodeId, x, y, parentNodeId) => {
       const node = nodesMap[nodeId];
       if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canMove) {
         return;
@@ -867,14 +893,19 @@ useEffect(() => {
 
       if (dragInFlightRef.current[nodeId]) {
         // isi node ke liye ek request pehle se chal rahi hai — sirf latest value yaad rakho
-        dragPendingRef.current[nodeId] = { x, y };
+        dragPendingRef.current[nodeId] = { x, y, parentNodeId };
         return;
       }
 
       dragInFlightRef.current[nodeId] = true;
 
+      const payload = { x: Math.round(x), y: Math.round(y) };
+      if (parentNodeId !== undefined) {
+        payload.parentNodeId = parentNodeId;
+      }
+
       const result = await dispatch(
-        updateCanvasNode({ workspaceId, nodeId, payload: { x: Math.round(x), y: Math.round(y) } })
+        updateCanvasNode({ workspaceId, nodeId, payload })
       );
 
       if (updateCanvasNode.rejected.match(result)) {
@@ -886,25 +917,58 @@ useEffect(() => {
       const pending = dragPendingRef.current[nodeId];
       if (pending) {
         dragPendingRef.current[nodeId] = null;
-        sendDragUpdate(nodeId, pending.x, pending.y);
+        sendDragUpdate(nodeId, pending.x, pending.y, pending.parentNodeId);
       }
     },
     [dispatch, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
-  const handleNodeDragEnd = useCallback(
+ const handleNodeDragEnd = useCallback(
     (nodeId, x, y) => {
       const node = nodesMap[nodeId];
       if (!computeNodePermissions(node, workspaceRole,currentUser?.id).canMove) {
         return;
       }
 
+      draggingNodeRef.current = false;
+      const stage = stageRef.current;
+      if (stage) {
+        stage.container().style.cursor = activeTool === "select" ? "grab" : "crosshair";
+      }
+
+      const deltaX = x - node.x;
+      const deltaY = y - node.y;
+
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
       emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
-      sendDragUpdate(nodeId, x, y);
-    },
-    [dispatch, emit, nodesMap, sendDragUpdate, workspaceId, workspaceRole,currentUser?.id]
-  );
 
+      // Text nodes can be nested inside sticky/rectangle/circle containers.
+      let parentNodeId = node.parentNodeId || null;
+      if (node.type === "text") {
+        const dropTarget = nodes.find((n) => {
+          if (n.id === nodeId) return false;
+          if (!["sticky", "rectangle", "circle"].includes(n.type)) return false;
+          const bounds = getNodeBounds(n);
+          if (!bounds) return false;
+          return x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height;
+        });
+        parentNodeId = dropTarget?.id || null;
+      }
+
+      sendDragUpdate(nodeId, x, y, parentNodeId);
+
+      // Carry any children (nested text nodes) along with a dragged container.
+      if (node.type !== "text") {
+        const children = nodes.filter((n) => n.parentNodeId === nodeId);
+        children.forEach((child) => {
+          const childNextX = child.x + deltaX;
+          const childNextY = child.y + deltaY;
+          dispatch(updateNodePositionLocally({ nodeId: child.id, x: childNextX, y: childNextY }));
+          sendDragUpdate(child.id, childNextX, childNextY, child.parentNodeId);
+        });
+      }
+    },
+    [activeTool, dispatch, emit, getNodeBounds, nodes, nodesMap, sendDragUpdate, workspaceId, workspaceRole,currentUser?.id]
+  );
 
 
   const handleNodeDragMove = useCallback(
@@ -914,7 +978,27 @@ useEffect(() => {
         return;
       }
 
+      // A node drag is in progress — force the "move" cursor and stop the
+      // hover handlers of other nodes (e.g. drop-target sticky) from
+      // overwriting it mid-drag.
+      draggingNodeRef.current = true;
+      const stage = stageRef.current;
+      if (stage && stage.container().style.cursor !== "move") {
+        stage.container().style.cursor = "move";
+      }
+
+      const deltaX = x - node.x;
+      const deltaY = y - node.y;
+
       dispatch(updateNodePositionLocally({ nodeId, x, y }));
+
+      // Live-follow: move children in real-time while a container is dragged.
+      if (node.type !== "text") {
+        const children = nodes.filter((n) => n.parentNodeId === nodeId);
+        children.forEach((child) => {
+          dispatch(updateNodePositionLocally({ nodeId: child.id, x: child.x + deltaX, y: child.y + deltaY }));
+        });
+      }
 
       const now = Date.now();
       if (now - dragEmitRef.current > 80) {
@@ -922,7 +1006,7 @@ useEffect(() => {
         emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
       }
     },
-    [dispatch, emit, nodesMap, workspaceId, workspaceRole,currentUser?.id]
+    [dispatch, emit, nodes, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
 
   const handleNodeClick = useCallback(
@@ -970,19 +1054,32 @@ useEffect(() => {
       const scaleX = target.scaleX();
       const scaleY = target.scaleY();
 
+      const min = MIN_DIMENSIONS[node.type] || { width: 40, height: 32 };
       const nextData = { ...data };
       if (node.type === "circle") {
-        const nextRadius = Math.max(24, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
+        const nextRadius = Math.max(min.width / 2, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
         nextData.radius = nextRadius;
       } else {
-        const baseWidth = data.width || (node.type === "text" ? DEFAULT_NODE_DATA.text.width : DEFAULT_NODE_DATA.sticky.width);
-        const baseHeight = data.height || (node.type === "text" ? DEFAULT_NODE_DATA.text.height : DEFAULT_NODE_DATA.sticky.height);
-        nextData.width = Math.max(48, Math.round(baseWidth * scaleX));
-        nextData.height = Math.max(32, Math.round(baseHeight * scaleY));
+        const baseWidth = data.width || DEFAULT_NODE_DATA[node.type]?.width || 160;
+        const baseHeight = data.height || DEFAULT_NODE_DATA[node.type]?.height || 100;
+        let nextWidth = Math.max(min.width, Math.round(baseWidth * scaleX));
+        let nextHeight = Math.max(min.height, Math.round(baseHeight * scaleY));
+
+        if (node.type === "sticky" && min.maxAspect) {
+          const ratio = nextWidth / nextHeight;
+          if (ratio > min.maxAspect) nextWidth = Math.round(nextHeight * min.maxAspect);
+          if (ratio < 1 / min.maxAspect) nextHeight = Math.round(nextWidth * min.maxAspect);
+        }
+
+        nextData.width = nextWidth;
+        nextData.height = nextHeight;
       }
 
-      // Local live UI update — sync position AND size so the controlled Group
-      // prop doesn't fight with Konva's internal transform on left/top anchors.
+      // Reset scale immediately so x/y aren't combined with a stale scale
+      // factor on the next drag tick (fixes left/top anchor jump).
+      target.scaleX(1);
+      target.scaleY(1);
+
       dispatch(updateNodePositionLocally({ nodeId, x: target.x(), y: target.y() }));
       dispatch(updateNodeDataLocally({ nodeId, patch: nextData }));
 
@@ -1015,15 +1112,25 @@ useEffect(() => {
       target.scaleX(1);
       target.scaleY(1);
 
+      const min = MIN_DIMENSIONS[node.type] || { width: 40, height: 32 };
       const nextData = { ...data };
       if (node.type === "circle") {
-        const nextRadius = Math.max(24, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
+        const nextRadius = Math.max(min.width / 2, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
         nextData.radius = nextRadius;
       } else {
-        const baseWidth = data.width || (node.type === "text" ? DEFAULT_NODE_DATA.text.width : DEFAULT_NODE_DATA.sticky.width);
-        const baseHeight = data.height || (node.type === "text" ? DEFAULT_NODE_DATA.text.height : DEFAULT_NODE_DATA.sticky.height);
-        nextData.width = Math.max(48, Math.round(baseWidth * scaleX));
-        nextData.height = Math.max(32, Math.round(baseHeight * scaleY));
+        const baseWidth = data.width || DEFAULT_NODE_DATA[node.type]?.width || 160;
+        const baseHeight = data.height || DEFAULT_NODE_DATA[node.type]?.height || 100;
+        let nextWidth = Math.max(min.width, Math.round(baseWidth * scaleX));
+        let nextHeight = Math.max(min.height, Math.round(baseHeight * scaleY));
+
+        if (node.type === "sticky" && min.maxAspect) {
+          const ratio = nextWidth / nextHeight;
+          if (ratio > min.maxAspect) nextWidth = Math.round(nextHeight * min.maxAspect);
+          if (ratio < 1 / min.maxAspect) nextHeight = Math.round(nextWidth * min.maxAspect);
+        }
+
+        nextData.width = nextWidth;
+        nextData.height = nextHeight;
       }
 
       dispatch(updateNodeDataLocally({ nodeId, patch: nextData }));
@@ -1333,19 +1440,20 @@ const handleSavePermissions = useCallback(async () => {
       node,
       isSelected: selectedNodeIds.includes(node.id),
       permissions,
+      isEditing: node.id === editingNodeId,
       onDragEnd: handleNodeDragEnd,
       onClick: handleNodeClick,
       onMouseEnter: () => {
         setHoveredNodeId(node.id);
         const stage = stageRef.current;
-        if (stage) {
+        if (stage && !draggingNodeRef.current) {
           stage.container().style.cursor = permissions.canEdit ? "move" : "not-allowed";
         }
       },
       onMouseLeave: () => {
         setHoveredNodeId((current) => (current === node.id ? null : current));
         const stage = stageRef.current;
-        if (stage) {
+        if (stage && !draggingNodeRef.current) {
           stage.container().style.cursor = activeTool === "select" ? "grab" : "crosshair";
         }
       },
@@ -1430,6 +1538,21 @@ const handleSavePermissions = useCallback(async () => {
           </span>
         </div>
       )}
+      
+
+      <ToolStylePanel
+        tool={activeTool}
+        strokeColor={toolStrokeColor}
+        onStrokeColorChange={setToolStrokeColor}
+        fillColor={toolFillColor}
+        onFillColorChange={setToolFillColor}
+        strokeWidth={toolStrokeWidth}
+        onStrokeWidthChange={setToolStrokeWidth}
+        edges={toolEdges}
+        onEdgesChange={setToolEdges}
+        opacity={toolOpacity}
+        onOpacityChange={setToolOpacity}
+      />
 
       {/* Konva Stage */}
       <Stage
@@ -1447,13 +1570,18 @@ const handleSavePermissions = useCallback(async () => {
         onMouseMove={handleStagePointerMove}
         onMouseUp={handleStagePointerUp}
         onClick={handleStageClick}
+     onDragMove={(e) => {
+          if (e.target !== e.target.getStage()) {
+            return;
+          }
+          setViewport((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
+        }}
         onDragEnd={(e) => {
           if (e.target !== e.target.getStage()) {
             return;
           }
           setViewport((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
         }}
-
 
 
         style={{ cursor: activeTool === "select" ? "grab" : "crosshair" }}
@@ -1471,9 +1599,11 @@ const handleSavePermissions = useCallback(async () => {
           ))}
         </Layer>
 
-        {/* Nodes layer */}
+       {/* Nodes layer */}
         <Layer>
-          {nodes.map(renderNode)}
+          {[...nodes]
+            .sort((a, b) => (a.parentNodeId ? 1 : 0) - (b.parentNodeId ? 1 : 0))
+            .map(renderNode)}
 
           {creationDraft && activeTool !== "arrow" && (() => {
             const current = creationDraft.current || creationDraft.start;
@@ -1565,7 +1695,7 @@ const handleSavePermissions = useCallback(async () => {
           })()}
 
 
-          <Transformer
+         <Transformer
             ref={transformerRef}
             rotateEnabled={false}
             keepRatio={selectedNode?.type === "circle" || isShiftPressed}
@@ -1584,8 +1714,15 @@ const handleSavePermissions = useCallback(async () => {
                 ]
             }
             boundBoxFunc={(oldBox, newBox) => {
-              if (newBox.width < 40 || newBox.height < 32) {
+              const min = MIN_DIMENSIONS[selectedNode?.type] || { width: 40, height: 32 };
+              if (newBox.width < min.width || newBox.height < min.height) {
                 return oldBox;
+              }
+              if (selectedNode?.type === "sticky" && min.maxAspect) {
+                const ratio = newBox.width / newBox.height;
+                if (ratio > min.maxAspect || ratio < 1 / min.maxAspect) {
+                  return oldBox;
+                }
               }
               return newBox;
             }}
@@ -1670,60 +1807,55 @@ const handleSavePermissions = useCallback(async () => {
             Double-click the node to edit its text. Resize with the corner handles.
           </div>
 
-          {inspectorColors.length > 0 && (
-            <div className="space-y-3">
+         {inspectorColors.length > 0 && (
+            <div className="space-y-4">
               {inspectorColors.includes("fill") && (
-                <div>
-                  <p className="mb-2 text-xs font-medium text-[color:var(--text-secondary)]">Fill</p>
-                  <HexColorPicker
-                    color={selectedNode.data?.fill || "#FFFFFF"}
-                    onChange={(color) => handleInspectorChange("fill", color)}
-                  />
-                </div>
+                <ColorSwatchPicker
+                  label="Background"
+                  value={selectedNode.data?.fill && selectedNode.data.fill !== "rgba(0,0,0,0)" ? selectedNode.data.fill : "transparent"}
+                  onChange={(color) => handleInspectorChange("fill", color === "transparent" ? "rgba(0,0,0,0)" : color)}
+                  colors={BACKGROUND_COLORS}
+                  allowTransparent
+                />
               )}
 
               {inspectorColors.includes("stroke") && (
-                <div>
-                  <p className="mb-2 text-xs font-medium text-[color:var(--text-secondary)]">Border</p>
-                  <HexColorPicker
-                    color={selectedNode.data?.stroke || "#000000"}
-                    onChange={(color) => handleInspectorChange("stroke", color)}
-                  />
-                </div>
+                <ColorSwatchPicker
+                  label="Border"
+                  value={selectedNode.data?.stroke || "#000000"}
+                  onChange={(color) => handleInspectorChange("stroke", color)}
+                  colors={STROKE_COLORS}
+                />
               )}
 
               {inspectorColors.includes("color") && selectedNode.type === "text" && (
-                <div>
-                  <p className="mb-2 text-xs font-medium text-[color:var(--text-secondary)]">Text color</p>
-                  <HexColorPicker
-                    color={selectedNode.data?.color || "#18181B"}
-                    onChange={(color) => handleInspectorChange("color", color)}
-                  />
-                </div>
+                <ColorSwatchPicker
+                  label="Text color"
+                  value={selectedNode.data?.color || "#18181B"}
+                  onChange={(color) => handleInspectorChange("color", color)}
+                  colors={STROKE_COLORS}
+                />
               )}
 
               {inspectorColors.includes("textColor") && selectedNode.type === "sticky" && (
-                <div>
-                  <p className="mb-2 text-xs font-medium text-[color:var(--text-secondary)]">Text color</p>
-                  <HexColorPicker
-                    color={selectedNode.data?.textColor || "#18181B"}
-                    onChange={(color) => handleInspectorChange("textColor", color)}
-                  />
-                </div>
+                <ColorSwatchPicker
+                  label="Text color"
+                  value={selectedNode.data?.textColor || "#18181B"}
+                  onChange={(color) => handleInspectorChange("textColor", color)}
+                  colors={STROKE_COLORS}
+                />
               )}
 
               {selectedNode.type === "arrow" && (
-                <div>
-                  <p className="mb-2 text-xs font-medium text-[color:var(--text-secondary)]">Arrow color</p>
-                  <HexColorPicker
-                    color={selectedNode.data?.color || "#6366F1"}
-                    onChange={(color) => handleInspectorChange("color", color)}
-                  />
-                </div>
+                <ColorSwatchPicker
+                  label="Arrow color"
+                  value={selectedNode.data?.color || "#6366F1"}
+                  onChange={(color) => handleInspectorChange("color", color)}
+                  colors={STROKE_COLORS}
+                />
               )}
             </div>
-          )}
-        </div>
+          )}</div>
       )}
 
       {hoveredTooltip && hoveredBounds && (
@@ -1738,51 +1870,62 @@ const handleSavePermissions = useCallback(async () => {
         </div>
       )}
 
-      {editingNodeId && selectedNodeBounds && (
-        <div
-          className="absolute z-30 rounded-xl border border-[color:var(--accent)] bg-[color:var(--bg-surface)] shadow-2xl"
-          style={{
-            left: `${selectedNodeBounds.x * viewport.scale + viewport.x}px`,
-            top: `${selectedNodeBounds.y * viewport.scale + viewport.y}px`,
-            width: `${Math.max(selectedNodeBounds.width * viewport.scale, 220)}px`,
-            minHeight: `${Math.max(selectedNodeBounds.height * viewport.scale, 64)}px`,
-          }}
-        >
-          <textarea
-            autoFocus
-            value={editingValue}
-            onChange={(event) => {
-              const value = event.target.value;
-              setEditingValue(value);
+   {editingNodeId && selectedNodeBounds && (() => {
+        const editingNode = nodesMap[editingNodeId];
+        const isCircleEdit = editingNode?.type === "circle";
+        const boxWidth = Math.max(selectedNodeBounds.width * viewport.scale, 220);
+        // Inscribed-square inset keeps typed text inside the circular boundary.
+        const circleInset = isCircleEdit ? Math.round(boxWidth * 0.146) : 0;
 
-              if (!textEmitTimerRef.current) {
-                emit("canvas:text", { workspaceId, nodeId: editingNodeId, value });
-                textEmitTimerRef.current = setTimeout(() => {
-                  textEmitTimerRef.current = null;
-                  if (pendingTextValueRef.current !== null) {
-                    const pending = pendingTextValueRef.current;
-                    pendingTextValueRef.current = null;
-                    emit("canvas:text", { workspaceId, nodeId: editingNodeId, value: pending });
-                  }
-                }, 120);
-              } else {
-                pendingTextValueRef.current = value;
-              }
+        return (
+          <div
+            className="absolute z-30 border border-[color:var(--accent)] shadow-2xl bg-transparent overflow-hidden"
+            style={{
+              left: `${selectedNodeBounds.x * viewport.scale + viewport.x}px`,
+              top: `${selectedNodeBounds.y * viewport.scale + viewport.y}px`,
+              width: `${boxWidth}px`,
+              minHeight: `${Math.max(selectedNodeBounds.height * viewport.scale, 64)}px`,
+              borderRadius: isCircleEdit ? "50%" : "0.75rem",
+              padding: isCircleEdit ? `${circleInset}px` : 0,
             }}
-            onBlur={handleEditorSave}
-            onKeyDown={handleEditorKeyDown}
-            className="h-full w-full resize-none rounded-xl bg-transparent p-3 text-sm text-[color:var(--text-primary)] outline-none"
-            placeholder="Enter text"
-          />
-        </div>
-      )}
+          >
+            <textarea
+              autoFocus
+              value={editingValue}
+              onChange={(event) => {
+                const value = event.target.value;
+                setEditingValue(value);
+
+                if (!textEmitTimerRef.current) {
+                  emit("canvas:text", { workspaceId, nodeId: editingNodeId, value });
+                  textEmitTimerRef.current = setTimeout(() => {
+                    textEmitTimerRef.current = null;
+                    if (pendingTextValueRef.current !== null) {
+                      const pending = pendingTextValueRef.current;
+                      pendingTextValueRef.current = null;
+                      emit("canvas:text", { workspaceId, nodeId: editingNodeId, value: pending });
+                    }
+                  }, 120);
+                } else {
+                  pendingTextValueRef.current = value;
+                }
+              }}
+              onBlur={handleEditorSave}
+              onKeyDown={handleEditorKeyDown}
+              className="h-full w-full resize-none bg-transparent p-3 text-sm outline-none text-center"
+              style={{ color: "#000000", borderRadius: isCircleEdit ? "50%" : "0.75rem" }}
+              placeholder="Enter text"
+            />
+          </div>
+        );
+      })()}
 
       {/* Toolbar */}
-      <CanvasToolbar
+     <CanvasToolbar
         activeTool={activeTool}
         onToolChange={setActiveTool}
-        activeColor={activeColor}
-        onColorChange={setActiveColor}
+        activeColor={toolFillColor}
+        onColorChange={setToolFillColor}
         canEdit={canEditCanvas}
         selectedNode={selectedNode}
         isLead={isLead}

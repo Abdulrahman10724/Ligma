@@ -25,6 +25,7 @@ export default function StickyNode({
   onTransformEnd,
   onMouseEnter,
   onMouseLeave,
+  isEditing,
 }) {
   const { x, y, data = {} } = node;
   const color = data.fill || STICKY_COLORS[data.color] || STICKY_COLORS.yellow;
@@ -75,19 +76,22 @@ export default function StickyNode({
         strokeWidth={isSelected ? 2 : 0}
         opacity={isLocked ? 0.82 : 1}
       />
-      {/* Text content */}
-      <Text
-        x={PADDING}
-        y={PADDING}
-        width={width - PADDING * 2}
-        height={height - PADDING * 2}
-        text={text}
-        fontSize={13}
-        fontFamily="Inter, system-ui, sans-serif"
-        fill={textColor}
-        wrap="word"
-        ellipsis
-      />
+    {/* Text content — hidden while the HTML textarea overlay is editing
+          this node, to avoid a stale "ghost" duplicate showing underneath. */}
+      {!isEditing && (
+        <Text
+          x={PADDING}
+          y={PADDING}
+          width={width - PADDING * 2}
+          height={height - PADDING * 2}
+          text={text}
+          fontSize={13}
+          fontFamily="Inter, system-ui, sans-serif"
+          fill={textColor}
+          wrap="word"
+          ellipsis
+        />
+      )}
       {isLocked && (
         <Text
           x={width - 52}
