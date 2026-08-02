@@ -16,86 +16,166 @@ const formatNodeType = (type) => {
   return map[type.toLowerCase()] || type;
 };
 
-// ponytail: parse events into clear non-technical sentences
-const parseEventText = (event) => {
-  const user = event.user?.name || "Someone";
-  const payload = event.payload || {};
-  const nodeType = formatNodeType(payload.snapshot?.type || payload.type);
-
-  switch (event.eventType) {
-    case "NODE_CREATED":
-      return {
-        title: `${user} created a new ${nodeType}`,
-        desc: payload.snapshot?.data?.text
-          ? `Added Sticky: "${payload.snapshot.data.text}"`
-          : "Placed new item on the canvas",
-      };
-    case "NODE_UPDATED":
-      // Detect if text changed
-      const textUpdated = payload.nextData?.text !== undefined;
-      return {
-        title: `${user} updated a ${nodeType}`,
-        desc: textUpdated
-          ? `Text changed to: "${payload.nextData.text}"`
-          : "Modified item attributes on the canvas",
-      };
-    case "NODE_MOVED":
-      return {
-        title: `${user} moved a canvas item`,
-        desc: "Dragged item to a new coordinate location",
-      };
-    case "NODE_RESIZED":
-      return {
-        title: `${user} resized a canvas item`,
-        desc: "Adjusted size boundary dimensions",
-      };
-    case "NODE_DELETED":
-      return {
-        title: `${user} deleted a ${nodeType}`,
-        desc: "Removed item from the active canvas",
-      };
-    case "NODE_LOCKED":
-      return {
-        title: `${user} locked a ${nodeType}`,
-        desc: "Protected this element from modifications",
-      };
-    case "NODE_UNLOCKED":
-      return {
-        title: `${user} unlocked a ${nodeType}`,
-        desc: "Restored editing access for all members",
-      };
-    case "NODE_PERMISSION_CHANGED":
-      return {
-        title: `${user} changed permissions on a canvas item`,
-        desc: "Restricted or shared node visibility permissions",
-      };
-    case "TASK_CREATED":
-      return {
-        title: `${user} created action item`,
-        desc: `Task: "${payload.snapshot?.title || "Action Item"}"`,
-      };
-    case "TASK_UPDATED":
-      const statusChanged = payload.nextFields?.status !== undefined;
-      const title = payload.nextFields?.title || "Task";
-      return {
-        title: `${user} updated action item`,
-        desc: statusChanged
-          ? `Status updated to "${payload.nextFields.status}"`
-          : `Modified task details for "${title}"`,
-      };
-    case "TASK_DELETED":
-      return {
-        title: `${user} deleted action item`,
-        desc: `Removed task: "${payload.snapshot?.title || "Deleted Task"}"`,
-      };
-    default:
-      return {
-        title: `${user} performed an action`,
-        desc: event.eventType ? `Event: ${event.eventType}` : "Workspace event occurred",
-      };
-  }
+// ponytail: friendly labels + colour-name mapping for human-readable diffs
+const FIELD_LABELS = {
+  fill: "background colour",
+  stroke: "border colour",
+  color: "colour",
+  textColor: "text colour",
+  text: "text",
+  label: "label",
 };
 
+const COLOR_NAMES = {
+  "#fef3c7": "Yellow", "#feca57": "Yellow", "#ffec99": "Light Yellow",
+  "#fce7f3": "Pink", "#eebefa": "Purple", "#a855f7": "Purple",
+  "#dbeafe": "Blue", "#3b82f6": "Blue", "#1971c2": "Blue", "#a5d8ff": "Light Blue",
+  "#d1fae5": "Green", "#22c55e": "Green", "#2f9e44": "Green", "#b2f2bb": "Light Green",
+  "#ffedd5": "Orange", "#f08c00": "Orange",
+  "#ef4444": "Red", "#e03131": "Red", "#ffc9c9": "Light Red",
+  "#000000": "Black", "#18181b": "Black", "#ffffff": "White",
+  "rgba(0,0,0,0)": "Transparent", "transparent": "Transparent",
+};
+
+function friendlyColor(value) {
+  if (!value) return "None";
+  const key = String(value).toLowerCase();
+  return COLOR_NAMES[key] || value;
+}
+
+// ponytail: parse events into clear non-technical sentences.
+// Wrapped in try/catch so a malformed/legacy payload never breaks the timeline.
+const parseEventText = (event) => {
+  try {
+    const user = event.user?.name || "Someone";
+    const payload = event.payload || {};
+    const nodeType = formatNodeType(payload.snapshot?.type || payload.type);
+
+    switch (event.eventType) {
+      case "NODE_CREATED":
+        return {
+          title: `${user} created a new ${nodeType}`,
+          desc: payload.snapshot?.data?.text
+            ? `Added text: "${payload.snapshot.data.text}"`
+            : "Placed a new item on the canvas",
+        };
+
+      case "NODE_UPDATED": {
+        const prev = payload.previousData || {};
+        const next = payload.nextData || {};
+        const changedKeys = Object.keys(next);
+
+        // Colour field changed (fill / stroke / color / textColor)
+        const colorKey = changedKeys.find((k) => ["fill", "stroke", "color", "textColor"].includes(k));
+        if (colorKey) {
+          const label = FIELD_LABELS[colorKey] || "colour";
+          return {
+            title: `${user} changed ${nodeType} ${label} from ${friendlyColor(prev[colorKey])} to ${friendlyColor(next[colorKey])}`,
+            desc: `${label[0].toUpperCase()}${label.slice(1)} updated`,
+          };
+        }
+
+        // Text / label changed
+        const textKey = changedKeys.find((k) => k === "text" || k === "label");
+        if (textKey) {
+          const oldText = prev[textKey] || "(empty)";
+          const newText = next[textKey] || "(empty)";
+          return {
+            title: `${user} changed the text on a ${nodeType}`,
+            desc: `"${oldText}" → "${newText}"`,
+          };
+        }
+
+        return {
+          title: `${user} updated a ${nodeType}`,
+          desc: "Modified item attributes on the canvas",
+        };
+      }
+
+      case "NODE_MOVED":
+        return {
+          title: `${user} moved a ${nodeType}`,
+          desc: "Dragged item to a new position on the canvas",
+        };
+
+      case "NODE_RESIZED": {
+        const prevData = payload.previousData || {};
+        const nextData = payload.nextData || {};
+        const dims = [];
+        if (nextData.width !== undefined) dims.push(`Width ${prevData.width ?? "?"} → ${nextData.width}`);
+        if (nextData.height !== undefined) dims.push(`Height ${prevData.height ?? "?"} → ${nextData.height}`);
+        if (nextData.radius !== undefined) dims.push(`Radius ${prevData.radius ?? "?"} → ${nextData.radius}`);
+        return {
+          title: `${user} resized a ${nodeType}`,
+          desc: dims.length ? dims.join(" · ") : "Adjusted size boundary dimensions",
+        };
+      }
+
+      case "NODE_DELETED":
+        return {
+          title: `${user} deleted a ${nodeType}`,
+          desc: "Removed item from the active canvas",
+        };
+
+      case "NODE_LOCKED":
+        return {
+          title: `${user} locked a ${nodeType}`,
+          desc: "Protected this element from modifications",
+        };
+
+      case "NODE_UNLOCKED":
+        return {
+          title: `${user} unlocked a ${nodeType}`,
+          desc: "Restored editing access for all members",
+        };
+
+      case "NODE_PERMISSION_CHANGED": {
+        const nextIds = Array.isArray(payload.nextAllowedUserIds) ? payload.nextAllowedUserIds : [];
+        return {
+          title: `${user} changed permissions on a ${nodeType}`,
+          desc: nextIds.length
+            ? `Restricted editing to ${nextIds.length} selected member${nextIds.length === 1 ? "" : "s"} (Lead always included)`
+            : "Opened editing to all contributors",
+        };
+      }
+
+      case "TASK_CREATED":
+        return {
+          title: `${user} created a task`,
+          desc: `"${payload.snapshot?.title || "Untitled task"}"`,
+        };
+
+      case "TASK_UPDATED": {
+        const statusChanged = payload.nextFields?.status !== undefined;
+        const taskTitle = payload.nextFields?.title;
+        return {
+          title: taskTitle ? `${user} updated task "${taskTitle}"` : `${user} updated a task`,
+          desc: statusChanged
+            ? `Status changed to "${payload.nextFields.status}"`
+            : "Task details updated",
+        };
+      }
+
+      case "TASK_DELETED":
+        return {
+          title: `${user} deleted a task`,
+          desc: `Removed: "${payload.snapshot?.title || "Untitled task"}"`,
+        };
+
+      default:
+        return {
+          title: `${user} performed an action`,
+          desc: event.eventType ? `Event: ${event.eventType}` : "Workspace event occurred",
+        };
+    }
+  // eslint-disable-next-line no-unused-vars
+  } catch (err) {
+    return {
+      title: "Workspace activity",
+      desc: "An event occurred, but its details couldn't be parsed.",
+    };
+  }
+};
 // ponytail: define tag badges with distinct colors to avoid plain colors
 const getBadges = (eventType) => {
   const badges = [];
@@ -126,7 +206,9 @@ const getBadges = (eventType) => {
 
 // ponytail: Memoized item row with lift transition, badge highlights, and relative time titles
 export default React.memo(function HistoryTimelineItem({ event }) {
+  // eslint-disable-next-line no-useless-assignment
   let relativeTime = "";
+  // eslint-disable-next-line no-useless-assignment
   let absoluteTime = "";
 
   try {

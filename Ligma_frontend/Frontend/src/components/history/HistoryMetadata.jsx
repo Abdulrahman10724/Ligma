@@ -1,5 +1,34 @@
-import React, { useState } from "react";
+import  { useState } from "react";
 import { ChevronDown } from "lucide-react";
+
+// ponytail: friendly field labels + colour-swatch detection for structured diffs
+const FIELD_LABELS = {
+  fill: "Background Colour",
+  stroke: "Border Colour",
+  color: "Colour",
+  textColor: "Text Colour",
+  text: "Text",
+  label: "Label",
+  width: "Width",
+  height: "Height",
+  radius: "Radius",
+  dx: "Arrow Length (X)",
+  dy: "Arrow Length (Y)",
+  status: "Status",
+  title: "Title",
+  description: "Description",
+  assigneeId: "Assignee",
+  priority: "Priority",
+  dueDate: "Due Date",
+  type: "Type",
+};
+
+const COLOR_FIELD_KEYS = new Set(["fill", "stroke", "color", "textColor"]);
+const HEX_OR_RGBA_RE = /^(#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})|rgba?\(.+\)|transparent)$/i;
+
+function isColorValue(key, value) {
+  return COLOR_FIELD_KEYS.has(key) && typeof value === "string" && HEX_OR_RGBA_RE.test(value);
+}
 
 // ponytail: expandable metadata panel for custom details and raw payload display
 export default function HistoryMetadata({ event }) {
@@ -73,34 +102,55 @@ export default function HistoryMetadata({ event }) {
       );
     }
 
-    if (hasFieldsChange || hasDataChange) {
+   if (hasFieldsChange || hasDataChange) {
       const prevObj = payload.previousFields || payload.previousData || {};
       const nextObj = payload.nextFields || payload.nextData || {};
-      const keys = [...new Set([...Object.keys(prevObj), ...Object.keys(nextObj)])];
+      const keys = [...new Set([...Object.keys(prevObj || {}), ...Object.keys(nextObj || {})])];
+
+      if (keys.length === 0) return null;
+
+      const formatVal = (v) => {
+        try {
+          if (v === null || v === undefined || v === "") return "None";
+          if (typeof v === "object") return JSON.stringify(v);
+          return String(v);
+        } catch {
+          return "—";
+        }
+      };
 
       return (
         <div className="space-y-3 text-xs">
           {keys.map((key) => {
             const prevVal = prevObj[key];
             const nextVal = nextObj[key];
-
-            const formatVal = (v) => {
-              if (v === null || v === undefined) return "None";
-              if (typeof v === "object") return JSON.stringify(v);
-              return String(v);
-            };
+            const label = FIELD_LABELS[key] || key;
+            const prevIsColor = isColorValue(key, prevVal);
+            const nextIsColor = isColorValue(key, nextVal);
 
             return (
               <div key={key} className="border-b border-[color:var(--border)]/50 pb-2 last:border-0 last:pb-0">
                 <span className="block text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-secondary)] mb-1">
-                  Field: {key}
+                  {label}
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[11px]">
-                  <div className="bg-[color:var(--bg-primary)]/50 p-2 rounded border border-[color:var(--border)]/40 text-red-500 dark:text-red-400 line-through truncate">
-                    {formatVal(prevVal)}
+                  <div className="flex items-center gap-1.5 bg-[color:var(--bg-primary)]/50 p-2 rounded border border-[color:var(--border)]/40 text-red-500 dark:text-red-400 line-through truncate">
+                    {prevIsColor && (
+                      <span
+                        className="inline-block h-3 w-3 shrink-0 rounded-full border border-[color:var(--border)] no-underline"
+                        style={{ backgroundColor: prevVal === "transparent" ? "transparent" : prevVal }}
+                      />
+                    )}
+                    <span className="truncate">{formatVal(prevVal)}</span>
                   </div>
-                  <div className="bg-[color:var(--bg-primary)] p-2 rounded border border-[color:var(--border)] text-emerald-600 dark:text-emerald-400 font-medium truncate">
-                    {formatVal(nextVal)}
+                  <div className="flex items-center gap-1.5 bg-[color:var(--bg-primary)] p-2 rounded border border-[color:var(--border)] text-emerald-600 dark:text-emerald-400 font-medium truncate">
+                    {nextIsColor && (
+                      <span
+                        className="inline-block h-3 w-3 shrink-0 rounded-full border border-[color:var(--border)]"
+                        style={{ backgroundColor: nextVal === "transparent" ? "transparent" : nextVal }}
+                      />
+                    )}
+                    <span className="truncate">{formatVal(nextVal)}</span>
                   </div>
                 </div>
               </div>
