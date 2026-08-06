@@ -67,7 +67,7 @@ export default function CreateChannelDialog({ open, onOpenChange, onSubmit, savi
             <Button type="button" variant="outline" className="rounded-2xl" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} className="rounded-2xl bg-gradient-to-r from-[color:var(--accent)] to-fuchsia-500 text-white">
+            <Button type="submit" disabled={saving} className="rounded-2xl bg-[color:var(--primary)] hover:bg-[color:var(--primary-hover)] text-[color:var(--primary-foreground)] transition-colors">
               {saving ? "Creating..." : "Create channel"}
             </Button>
           </DialogFooter>

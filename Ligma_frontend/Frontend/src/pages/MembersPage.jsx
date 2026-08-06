@@ -17,9 +17,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 const ROLE_OPTIONS = ["Contributor", "Viewer"];
 
 const ROLE_STYLES = {
-  Lead: "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700",
-  Contributor: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
-  Viewer: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
+  Lead: "bg-[color:var(--primary-soft)] text-[color:var(--primary)] border-[color:var(--primary)]/20",
+  Contributor: "bg-[color:var(--highlight-soft)] text-[color:var(--warning)] border-[color:var(--highlight)]/20",
+  Viewer: "bg-[color:var(--surface-muted)] text-[color:var(--foreground-muted)] border-[color:var(--border)]",
 };
 
 function getInitials(name = "") {
@@ -34,7 +34,7 @@ function getInitials(name = "") {
 function AvatarFallback({ name }) {
   const initials = getInitials(name);
   return (
-    <span className="w-9 h-9 rounded-full bg-[color:var(--accent)] text-white flex items-center justify-center text-xs font-bold shrink-0">
+    <span className="w-9 h-9 rounded-full bg-[color:var(--primary)] text-[color:var(--primary-foreground)] flex items-center justify-center text-xs font-bold shrink-0">
       {initials || "?"}
     </span>
   );

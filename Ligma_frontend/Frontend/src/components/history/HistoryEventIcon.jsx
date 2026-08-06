@@ -31,7 +31,7 @@ export default function HistoryEventIcon({ eventType, className = "w-4 h-4" }) {
       break;
     case "NODE_MOVED":
       Icon = Move;
-      colorClass = "text-purple-500 bg-purple-500/10 border-purple-500/20 dark:text-purple-400 dark:bg-purple-500/15";
+      colorClass = "text-[color:var(--primary)] bg-[color:var(--primary-soft)] border-[color:var(--primary)]/20";
       break;
     case "NODE_RESIZED":
       Icon = Expand;

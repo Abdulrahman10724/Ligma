@@ -194,7 +194,7 @@ const getBadges = (eventType) => {
   } else if (eventType.includes("DELETE")) {
     badges.push({ label: "Delete", style: "bg-red-500/10 text-red-500 border-red-500/20" });
   } else if (eventType.includes("MOVE")) {
-    badges.push({ label: "Move", style: "bg-purple-500/10 text-purple-500 border-purple-500/20" });
+    badges.push({ label: "Move", style: "bg-[color:var(--highlight-soft)] text-[color:var(--highlight)] border-[color:var(--highlight)]/30" });
   } else if (eventType.includes("LOCK")) {
     badges.push({ label: "Lock", style: "bg-amber-500/10 text-amber-500 border-amber-500/20" });
   } else if (eventType.includes("PERMISSION")) {

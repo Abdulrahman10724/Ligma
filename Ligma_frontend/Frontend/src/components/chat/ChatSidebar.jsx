@@ -32,8 +32,7 @@ export default function ChatSidebar({
           </div>
           <Button
             type="button"
-            size="icon-sm"
-            className="h-10 w-10 rounded-2xl bg-gradient-to-r from-[color:var(--accent)] to-fuchsia-500 text-white shadow-lg hover:brightness-110"
+            className="h-10 w-10 rounded-2xl bg-[color:var(--primary)] hover:bg-[color:var(--primary-hover)] text-white shadow-lg transition-colors"
             onClick={onCreate}
             disabled={!canCreate}
             aria-label="Create channel"

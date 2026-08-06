@@ -107,7 +107,7 @@ export default function ReplayControls({ onExit }) {
         onClick={() => dispatch(isPlaying ? pause() : play())}
         disabled={!canControl}
         title={isPlaying ? "Pause" : "Play"}
-        className="cursor-pointer inline-flex items-center gap-1.5 justify-center rounded-lg h-9 px-4 bg-gradient-to-r from-[color:var(--accent)] to-purple-500 text-white font-semibold text-xs shadow-md hover:shadow-lg hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        className="cursor-pointer inline-flex items-center gap-1.5 justify-center rounded-lg h-9 px-4 bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary-hover)] font-semibold text-xs shadow-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isPlaying ? (
           <>
@@ -153,7 +153,7 @@ export default function ReplayControls({ onExit }) {
             disabled={!canControl}
             className={`cursor-pointer text-[11px] font-bold tabular-nums px-2 h-7 rounded-md transition-all ${
               speed === s
-                ? "bg-gradient-to-r from-[color:var(--accent)] to-purple-500 text-white shadow"
+                ? "bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow"
                 : "text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-primary)]"
             } disabled:opacity-40 disabled:cursor-not-allowed`}
           >

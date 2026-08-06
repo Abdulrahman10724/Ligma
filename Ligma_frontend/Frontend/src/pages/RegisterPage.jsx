@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-
+import { BrandLockup } from "../components/ui/BrandMark";
 import { registerUser } from "../redux/authSlice";
 
 const schema = z.object({
@@ -18,11 +18,7 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { loading, isAuthenticated, error } = useSelector((state) => state.auth);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { name: "", email: "", password: "" },
   });
@@ -41,53 +37,122 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[color:var(--bg-primary)] px-4 text-[color:var(--text-primary)]">
-      <div className="w-full max-w-md p-8 bg-[color:var(--bg-surface)] border border-[color:var(--border)] rounded-2xl shadow-sm">
-        <h2 className="text-3xl font-bold mb-3 text-center text-[color:var(--accent)]">Create account</h2>
-        <p className="text-sm text-center mb-6 text-[color:var(--text-secondary)]">Join LIGMA and collaborate in real time</p>
-        {error ? <p className="mb-4 rounded-md border border-[color:var(--danger)]/30 bg-[color:var(--danger)]/10 px-3 py-2 text-sm text-[color:var(--danger)]">{error}</p> : null}
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          <div>
-            <input
-              type="text"
-              placeholder="Full name"
-              className="w-full p-3 border border-[color:var(--border)] bg-[color:var(--bg-primary)] rounded-md focus:outline-none focus:border-[color:var(--accent)]"
-              {...register("name")}
-              disabled={loading}
-            />
-            {errors.name ? <p className="mt-1 text-xs text-[color:var(--danger)]">{errors.name.message}</p> : null}
+    <div className="min-h-screen flex bg-[color:var(--background)] text-[color:var(--foreground)]">
+      {/* ── Left decorative panel ────────────────────────────────────────── */}
+      <div className="hidden lg:flex lg:w-[52%] xl:w-[56%] flex-col justify-between p-12 bg-[color:var(--surface)] border-r border-[color:var(--border)] relative overflow-hidden">
+        <svg className="absolute inset-0 w-full h-full opacity-[0.04]" viewBox="0 0 600 700" fill="none" aria-hidden="true">
+          <circle cx="150" cy="300" r="200" stroke="currentColor" strokeWidth="0.8" />
+          <circle cx="450" cy="400" r="160" stroke="currentColor" strokeWidth="0.8" />
+          <line x1="0" y1="350" x2="600" y2="350" stroke="currentColor" strokeWidth="0.5" />
+          <line x1="300" y1="0" x2="300" y2="700" stroke="currentColor" strokeWidth="0.5" />
+          <rect x="80" y="120" width="440" height="460" rx="8" stroke="currentColor" strokeWidth="0.5" />
+          <polygon points="300,50 550,650 50,650" stroke="currentColor" strokeWidth="0.4" fill="none" />
+        </svg>
+
+        <div className="relative">
+          <BrandLockup size="lg" />
+        </div>
+
+        <div className="relative space-y-5">
+          <h2 className="text-4xl font-black leading-[1.1] tracking-tight text-[color:var(--foreground)]">
+            Build together,<br />
+            <span className="text-[color:var(--primary)]">think clearly.</span>
+          </h2>
+          <p className="text-sm text-[color:var(--foreground-secondary)] max-w-xs leading-relaxed">
+            Join LIGMA and collaborate in real time on an infinite canvas. Invite your team, assign roles, and track every decision.
+          </p>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            {[
+              { label: "Infinite canvas", desc: "Draw, plan, annotate" },
+              { label: "Real-time sync", desc: "See every cursor live" },
+              { label: "AI extraction", desc: "Tasks & decisions" },
+              { label: "Full audit log", desc: "Time-travel replay" },
+            ].map(({ label, desc }) => (
+              <div key={label} className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-[color:var(--foreground)]">{label}</span>
+                <span className="text-xs text-[color:var(--foreground-muted)]">{desc}</span>
+              </div>
+            ))}
           </div>
-          <div>
-            <input
-              type="email"
-              placeholder="Email address"
-              className="w-full p-3 border border-[color:var(--border)] bg-[color:var(--bg-primary)] rounded-md focus:outline-none focus:border-[color:var(--accent)]"
-              {...register("email")}
-              disabled={loading}
-            />
-            {errors.email ? <p className="mt-1 text-xs text-[color:var(--danger)]">{errors.email.message}</p> : null}
+        </div>
+
+        <p className="relative text-xs text-[color:var(--foreground-muted)]">LIGMA © {new Date().getFullYear()}</p>
+      </div>
+
+      {/* ── Right auth panel ─────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="mb-10 lg:hidden">
+          <BrandLockup size="md" />
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-[color:var(--foreground)]">Create your account</h1>
+            <p className="mt-1 text-sm text-[color:var(--foreground-muted)]">Free to start. No credit card required.</p>
           </div>
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full p-3 border border-[color:var(--border)] bg-[color:var(--bg-primary)] rounded-md focus:outline-none focus:border-[color:var(--accent)]"
-              {...register("password")}
+
+          {error && (
+            <div className="mb-5 rounded-lg border border-[color:var(--danger)]/30 bg-[color:var(--danger-soft)] px-3.5 py-3 text-sm text-[color:var(--danger)]">
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+            <div>
+              <label className="block text-xs font-semibold text-[color:var(--foreground-secondary)] mb-1.5">Full name</label>
+              <input
+                type="text"
+                placeholder="Alex Kim"
+                autoComplete="name"
+                className="w-full h-10 px-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--foreground-muted)] outline-none focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] transition-all disabled:opacity-50"
+                disabled={loading}
+                {...register("name")}
+              />
+              {errors.name && <p className="mt-1.5 text-xs text-[color:var(--danger)]">{errors.name.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[color:var(--foreground-secondary)] mb-1.5">Email address</label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="w-full h-10 px-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--foreground-muted)] outline-none focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] transition-all disabled:opacity-50"
+                disabled={loading}
+                {...register("email")}
+              />
+              {errors.email && <p className="mt-1.5 text-xs text-[color:var(--danger)]">{errors.email.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[color:var(--foreground-secondary)] mb-1.5">Password</label>
+              <input
+                type="password"
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                className="w-full h-10 px-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--foreground-muted)] outline-none focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] transition-all disabled:opacity-50"
+                disabled={loading}
+                {...register("password")}
+              />
+              {errors.password && <p className="mt-1.5 text-xs text-[color:var(--danger)]">{errors.password.message}</p>}
+            </div>
+
+            <button
+              type="submit"
               disabled={loading}
-            />
-            {errors.password ? <p className="mt-1 text-xs text-[color:var(--danger)]">{errors.password.message}</p> : null}
-          </div>
-          <button
-            type="submit"
-            className="w-full py-3 bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)] text-white font-medium rounded-md transition-colors duration-150 disabled:opacity-60"
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Sign up"}
-          </button>
-        </form>
-        <p className="mt-4 text-xs text-center text-[color:var(--text-secondary)]">
-          Already have an account? <Link to="/login" className="text-[color:var(--accent)] font-semibold hover:underline">Sign in</Link>
-        </p>
+              className="w-full h-10 rounded-lg bg-[color:var(--primary)] text-[color:var(--primary-foreground)] text-sm font-semibold hover:bg-[color:var(--primary-hover)] transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+            >
+              {loading ? "Creating account…" : "Create account"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-xs text-center text-[color:var(--foreground-muted)]">
+            Already have an account?{" "}
+            <Link to="/login" className="text-[color:var(--primary)] font-semibold hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

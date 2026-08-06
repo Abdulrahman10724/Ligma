@@ -67,7 +67,7 @@ function MessageBubble({
     <div className={cn("group flex gap-3 px-4 sm:px-6", showHeader ? "mt-5" : "mt-1")}>
       <div className="w-10 shrink-0">
         {showHeader ? (
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[color:var(--accent)] to-fuchsia-500 text-xs font-semibold text-white shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--primary)] text-xs font-semibold text-[color:var(--primary-foreground)] shadow-sm">
             {getInitials(message.user.name)}
           </div>
         ) : null}

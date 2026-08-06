@@ -140,7 +140,7 @@ export default function HistoryPage() {
           <Button
             onClick={handleStartReplay}
             disabled={loading || events.length === 0}
-            className="cursor-pointer h-10 px-4 bg-gradient-to-r from-[color:var(--accent)] to-purple-500 text-white font-semibold text-sm shadow-md hover:shadow-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-lg"
+            className="cursor-pointer h-10 px-4 bg-[color:var(--primary)] hover:bg-[color:var(--primary-hover)] text-[color:var(--primary-foreground)] font-semibold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-lg"
           >
             <Play className="w-4 h-4 fill-current" />
             Time Travel Replay
@@ -199,10 +199,9 @@ export default function HistoryPage() {
           {/* Right 1 Column: Time Travel Replay hero card */}
           <div className="space-y-6">
             <div className="bg-[color:var(--bg-surface)] border border-[color:var(--border)] rounded-xl p-6 shadow-xs h-fit relative overflow-hidden group">
-              {/* Top accent line */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[color:var(--accent)] to-purple-500"></div>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-[color:var(--primary)]"></div>
               {/* Decorative blur */}
-              <div className="absolute -top-16 -right-16 w-40 h-40 bg-gradient-to-br from-[color:var(--accent)]/20 to-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-[color:var(--primary-soft)] rounded-full blur-3xl pointer-events-none opacity-60" />
 
               <div className="flex items-center justify-between mb-4 relative">
                 <h3 className="text-base font-bold text-[color:var(--text-primary)] flex items-center gap-2">
@@ -247,11 +246,11 @@ export default function HistoryPage() {
                     {stats.total > 0 ? (
                       <>
                         <span
-                          className="h-full bg-gradient-to-r from-[color:var(--accent)] to-indigo-500"
+                          className="h-full bg-[color:var(--primary)]"
                           style={{ width: `${(stats.nodeEvents / stats.total) * 100}%` }}
                         />
                         <span
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                          className="h-full bg-[color:var(--secondary)]"
                           style={{ width: `${(stats.taskEvents / stats.total) * 100}%` }}
                         />
                       </>
@@ -275,13 +274,13 @@ export default function HistoryPage() {
                     type="button"
                     onClick={handleStartReplay}
                     disabled={loading || events.length === 0}
-                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-[color:var(--accent)] to-purple-500 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:brightness-110 transition-all"
+                    className="px-4 py-2 rounded-lg bg-[color:var(--primary)] hover:bg-[color:var(--primary-hover)] text-[color:var(--primary-foreground)] font-semibold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     Start Replay
                   </button>
                 </div>
-                <div className="text-[11px] font-semibold text-purple-400/90 tracking-wide uppercase">
+                <div className="text-[11px] font-semibold text-[color:var(--primary)] tracking-wide uppercase">
                   {events.length === 0 ? "No events to replay yet" : "Ready · Read-only reconstruction"}
                 </div>
               </div>

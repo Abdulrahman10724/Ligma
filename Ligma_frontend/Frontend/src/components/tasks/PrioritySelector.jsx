@@ -4,11 +4,11 @@ import { AlertTriangle, TrendingUp, Minus, TrendingDown, Flag, Check } from "luc
 import { cn } from "@/lib/utils";
 
 export const PRIORITY_OPTIONS = [
-  { value: "Urgent", label: "Urgent", color: "text-red-400",    dotColor: "bg-red-500",    Icon: AlertTriangle },
-  { value: "High",   label: "High",   color: "text-orange-400", dotColor: "bg-orange-500", Icon: TrendingUp   },
-  { value: "Medium", label: "Medium", color: "text-yellow-400", dotColor: "bg-yellow-500", Icon: Minus        },
-  { value: "Low",    label: "Low",    color: "text-blue-400",   dotColor: "bg-blue-500",   Icon: TrendingDown },
-  { value: null,     label: "None",   color: "text-[color:var(--text-secondary)]", dotColor: "bg-[color:var(--border)]", Icon: Flag },
+  { value: "Urgent", label: "Urgent", color: "text-[color:var(--danger)]",    dotColor: "bg-[color:var(--danger)]",    Icon: AlertTriangle },
+  { value: "High",   label: "High",   color: "text-[color:var(--warning)]",   dotColor: "bg-[color:var(--warning)]",   Icon: TrendingUp   },
+  { value: "Medium", label: "Medium", color: "text-[color:var(--highlight)]", dotColor: "bg-[color:var(--highlight)]", Icon: Minus        },
+  { value: "Low",    label: "Low",    color: "text-[color:var(--primary)]",   dotColor: "bg-[color:var(--primary)]",   Icon: TrendingDown },
+  { value: null,     label: "None",   color: "text-[color:var(--foreground-muted)]", dotColor: "bg-[color:var(--border)]", Icon: Flag },
 ];
 
 export function getPriorityConfig(value) {
@@ -79,7 +79,7 @@ export function PrioritySelector({ value, onChange, disabled }) {
         title={config.label}
         className={cn(
           "flex items-center gap-1.5 h-7 px-2 rounded text-xs font-medium transition-colors outline-none",
-          "hover:bg-[color:var(--bg-primary)] cursor-pointer",
+          "hover:bg-[color:var(--surface-hover)] cursor-pointer",
           disabled && "cursor-default opacity-60"
         )}
       >
@@ -97,7 +97,7 @@ export function PrioritySelector({ value, onChange, disabled }) {
             width: DROPDOWN_WIDTH,
             zIndex: 9999,
           }}
-          className="bg-[color:var(--bg-surface)] border border-[color:var(--border)] rounded-lg shadow-xl py-1"
+          className="bg-[color:var(--surface)] border border-[color:var(--border)] rounded-lg shadow-xl py-1"
         >
           {PRIORITY_OPTIONS.filter((o) => o.value !== null).map((opt) => {
             const OIcon = opt.Icon;
@@ -107,11 +107,14 @@ export function PrioritySelector({ value, onChange, disabled }) {
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={cn("w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-[color:var(--bg-primary)]", isSel && "bg-[color:var(--bg-primary)]")}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left cursor-pointer",
+                  "hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)]",
+                  isSel ? "text-[color:var(--foreground)] font-medium" : "text-[color:var(--foreground-muted)]"
+                )}
               >
-                <span className={cn("w-2 h-2 rounded-full flex-shrink-0", opt.dotColor)} />
                 <OIcon className={cn("w-3.5 h-3.5 flex-shrink-0", opt.color)} />
-                <span className={cn("flex-1 text-left", opt.color)}>{opt.label}</span>
+                <span className="flex-1 text-left">{opt.label}</span>
                 {isSel && <Check className="w-3 h-3 text-[color:var(--accent)]" />}
               </button>
             );
@@ -120,11 +123,15 @@ export function PrioritySelector({ value, onChange, disabled }) {
           <button
             type="button"
             onClick={() => { onChange(null); setOpen(false); }}
-            className={cn("w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-primary)]", !value && "bg-[color:var(--bg-primary)]")}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left cursor-pointer",
+              "hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)]",
+              !value ? "text-[color:var(--foreground)] font-medium" : "text-[color:var(--foreground-muted)]"
+            )}
           >
             <Flag className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 text-left">Clear priority</span>
-            {!value && <Check className="w-3 h-3 text-[color:var(--accent)]" />}
+            {!value && <Check className="w-3 h-3 text-[color:var(--primary)]" />}
           </button>
         </div>,
         document.body

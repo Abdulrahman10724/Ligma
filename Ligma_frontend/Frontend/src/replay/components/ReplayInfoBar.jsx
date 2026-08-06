@@ -23,7 +23,7 @@ import HistoryEventIcon from "../../components/history/HistoryEventIcon";
 const ACCENT_CLASSES = {
   emerald: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
   blue: "bg-blue-500/10 text-blue-500 border-blue-500/30",
-  purple: "bg-purple-500/10 text-purple-500 border-purple-500/30",
+  purple: "bg-[color:var(--highlight-soft)] text-[color:var(--highlight)] border-[color:var(--highlight)]/30",
   orange: "bg-orange-500/10 text-orange-500 border-orange-500/30",
   red: "bg-red-500/10 text-red-500 border-red-500/30",
   amber: "bg-amber-500/10 text-amber-500 border-amber-500/30",
@@ -97,7 +97,7 @@ export default function ReplayInfoBar() {
       <div className="flex items-center gap-2 ml-auto pl-3 border-l border-[color:var(--border)]/60">
         {currentEvent?.user ? (
           <>
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[color:var(--accent)] to-purple-500 text-[10px] font-bold text-white shadow-xs">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary)] text-[10px] font-bold text-[color:var(--primary-foreground)] shadow-xs">
               {initialsFor(currentEvent.user?.name)}
             </span>
             <div className="flex flex-col leading-tight">

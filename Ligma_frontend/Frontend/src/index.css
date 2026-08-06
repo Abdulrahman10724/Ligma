@@ -1,146 +1,407 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   LIGMA Design System — Tailwind v4 @theme
+   Maps semantic CSS custom properties into Tailwind's color / spacing system.
+   All bg-primary, text-foreground, border-border etc. classes work via these.
+   ───────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-bg-primary: var(--bg-primary);
-  --color-bg-surface: var(--bg-surface);
-  --color-border: var(--border);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
+  /* Semantic surface tokens */
+  --color-background:       var(--background);
+  --color-surface:          var(--surface);
+  --color-surface-raised:   var(--surface-raised);
+  --color-surface-muted:    var(--surface-muted);
+  --color-surface-hover:    var(--surface-hover);
 
-  --color-ai-action: var(--ai-action);
-  --color-ai-decision: var(--ai-decision);
-  --color-ai-question: var(--ai-question);
-  --color-ai-reference: var(--ai-reference);
+  /* Foreground tokens */
+  --color-foreground:            var(--foreground);
+  --color-foreground-secondary:  var(--foreground-secondary);
+  --color-foreground-muted:      var(--foreground-muted);
 
+  /* Border tokens */
+  --color-border:        var(--border);
+  --color-border-strong: var(--border-strong);
+
+  /* Primary — deep teal */
+  --color-primary:            var(--primary);
+  --color-primary-hover:      var(--primary-hover);
+  --color-primary-soft:       var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+
+  /* Secondary — terracotta */
+  --color-secondary:            var(--secondary);
+  --color-secondary-soft:       var(--secondary-soft);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  /* Highlight — amber */
+  --color-highlight:      var(--highlight);
+  --color-highlight-soft: var(--highlight-soft);
+
+  /* State tokens */
+  --color-success:      var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning:      var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger:       var(--danger);
+  --color-danger-soft:  var(--danger-soft);
+
+  /* Canvas */
+  --color-canvas-background: var(--canvas-background);
+
+  /* ── @base-ui / Tailwind semantic compat names ── */
+  --color-accent:             var(--primary);
+  --color-accent-foreground:  var(--foreground);
+  --color-muted:              var(--surface-muted);
+  --color-muted-foreground:   var(--foreground-muted);
+  --color-popover:            var(--surface);
+  --color-popover-foreground: var(--foreground);
+  --color-input:              var(--border);
+  --color-ring:               var(--focus-ring);
+  --color-destructive:        var(--danger);
+
+  /* ── Legacy alias tokens (keep existing var(--bg-primary) etc. working) ── */
+  --color-bg-primary:    var(--background);
+  --color-bg-surface:    var(--surface);
+  --color-text-primary:  var(--foreground);
+  --color-text-secondary: var(--foreground-secondary);
+
+  /* ── AI category tokens ── */
+  --color-ai-action:    var(--primary);
+  --color-ai-decision:  var(--secondary);
+  --color-ai-question:  var(--highlight);
+  --color-ai-reference: var(--foreground-muted);
+
+  /* ── Border radius system ── */
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 16px;
-  
-  --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+  --radius-lg: 12px;
+
+  /* ── Typography ── */
+  --font-sans: "Geist Variable", "Inter", "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   LIGHT THEME  (default)
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg-primary: #FAFAFA;
-  --bg-surface: #FFFFFF;
-  --border: #E4E4E7;
-  --text-primary: #18181B;
-  --text-secondary: #71717A;
-  --accent: #6366F1;
-  --accent-hover: #4F46E5;
-  --success: #22C55E;
-  --warning: #F59E0B;
-  --danger: #EF4444;
+color-scheme: light;
+  --background:        #FBFBF9;
+  --surface:           #FFFFFF;
+  --surface-raised:    #FFFFFF;
+  --surface-muted:     #F3F3EE;
+  --surface-hover:     #E9E8E1;
 
-  /* AI Badges */
-  --ai-action: #EF4444;
-  --ai-decision: #22C55E;
-  --ai-question: #F59E0B;
-  --ai-reference: #8B5CF6;
+  --foreground:           #1C1917;
+  --foreground-secondary: #44403C;
+  --foreground-muted:     #78716C;
+  --foreground-subtle:    #A8A29E;
 
-  /* Sticky Notes */
-  --sticky-yellow: #FEF3C7;
-  --sticky-pink: #FCE7F3;
-  --sticky-blue: #DBEAFE;
-  --sticky-green: #D1FAE5;
-  --sticky-orange: #FFEDD5;
+  --border:        #E7E5E4;
+  --border-strong: #D6D3D1;
 
-  /* ── @base-ui / Radix popover + menu token mappings ── */
-  --popover: var(--bg-surface);
-  --popover-foreground: var(--text-primary);
-  --muted-foreground: var(--text-secondary);
-  --accent-foreground: var(--text-primary);
-  --foreground: var(--text-primary);
+  --primary:            #0D9488; /* Soft Jade/Teal, non-harsh */
+  --primary-hover:      #0F766E;
+  --primary-soft:       #CCFBF1;
+  --primary-foreground: #FFFFFF;
+
+  --secondary:            #EA580C; /* Terracotta Accent */
+  --secondary-soft:       #FFEDD5;
+  --secondary-foreground: #FFFFFF;
+
+  --highlight:      #D97706;
+  --highlight-soft: #FEF3C7;
+
+  --success:      #16A34A;
+  --success-soft: #DCFCE7;
+  --warning:      #D97706;
+  --warning-soft: #FEF3C7;
+  --danger:       #DC2626;
+  --danger-soft:  #FEE2E2;
+
+  --canvas-background: #F5F5F0;
+  --focus-ring: rgba(13, 148, 136, 0.25);
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 3px 0 rgba(27,41,39,0.08), 0 1px 2px -1px rgba(27,41,39,0.06);
+  --shadow-md: 0 4px 12px -2px rgba(27,41,39,0.12), 0 2px 6px -2px rgba(27,41,39,0.08);
+
+  /* ── Sticky note restrained palette ── */
+  --sticky-yellow: #FDF6DC;
+  --sticky-pink:   #F7E8E2;
+  --sticky-blue:   #E2EEF5;
+  --sticky-green:  #DDF0E6;
+  --sticky-orange: #FBE9D8;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     BACKWARD-COMPATIBLE ALIASES
+     All existing JSX classes using var(--bg-primary), var(--accent),
+     var(--text-primary) etc. continue to work unchanged.
+     ───────────────────────────────────────────────────────────────────────── */
+  --bg-primary:   var(--background);
+  --bg-surface:   var(--surface);
+  --accent:       var(--primary);
+  --accent-hover: var(--primary-hover);
+  --text-primary:   var(--foreground);
+  --text-secondary: var(--foreground-secondary);
+
+  /* AI badge backward-compat tokens */
+  --ai-action:    var(--primary);
+  --ai-decision:  var(--secondary);
+  --ai-question:  var(--highlight);
+  --ai-reference: var(--foreground-muted);
+
+  /* ── @base-ui / Tailwind compat ── */
+  --popover:            var(--surface);
+  --popover-foreground: var(--foreground);
+  --muted-foreground:   var(--foreground-muted);
+  --accent-foreground:  var(--foreground);
+  --muted:              var(--surface-muted);
+  --input:              var(--border);
+  --ring:               var(--focus-ring);
+  --destructive:        var(--danger);
 }
 
-/* Supports system dark mode as well as a class override */
+/* ─────────────────────────────────────────────────────────────────────────────
+   DARK THEME  (.dark class — set by next-themes)
+   Deep charcoal-green, not pitch-black or purple.
+   ───────────────────────────────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+  --background:        #121214;
+  --surface:           #18181B;
+  --surface-raised:    #27272A;
+  --surface-muted:     #3F3F46;
+  --surface-hover:     #52525B;
+
+  --foreground:           #FAFAFA;
+  --foreground-secondary: #D4D4D8;
+  --foreground-muted:     #A1A1AA;
+  --foreground-subtle:    #71717A;
+
+  --border:        #27272A;
+  --border-strong: #3F3F46;
+
+  --primary:            #2DD4BF;
+  --primary-hover:      #5EEAD4;
+  --primary-soft:       #134E4A;
+  --primary-foreground: #042F2E;
+
+  --secondary:            #FB923C;
+  --secondary-soft:       #7C2D12;
+  --secondary-foreground: #FFFFFF;
+
+  --highlight:      #FBBF24;
+  --highlight-soft: #451A03;
+
+  --canvas-background: #09090B;
+  --focus-ring: rgba(45, 212, 191, 0.3);
+  --shadow-sm:0 2px 4px rgba(0,0,0,.22);
+  --shadow-md:0 12px 28px rgba(0,0,0,.35);
+
+  --sticky-yellow:#FFE58F;
+  --sticky-pink:#FFD3DA;
+  --sticky-blue:#BFE1FF;
+  --sticky-green:#CAF4D5;
+  --sticky-orange:#FFD8AE;
+
+  /* Backward-compat aliases */
+  --bg-primary:   var(--background);
+  --bg-surface:   var(--surface);
+  --accent:       var(--primary);
+  --accent-hover: var(--primary-hover);
+  --text-primary:   var(--foreground);
+  --text-secondary: var(--foreground-secondary);
+
+  --ai-action:    var(--primary);
+  --ai-decision:  var(--secondary);
+  --ai-question:  var(--highlight);
+  --ai-reference: var(--foreground-muted);
+
+  --popover:            var(--surface);
+  --popover-foreground: var(--foreground);
+  --muted-foreground:   var(--foreground-muted);
+  --accent-foreground:  var(--foreground);
+  --muted:              var(--surface-muted);
+  --input:              var(--border);
+  --ring:               var(--focus-ring);
+  --destructive:        var(--danger);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SYSTEM DARK PREFERENCE — applies when theme = "system" and OS is dark.
+   Mirrors .dark block exactly.
+   ───────────────────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --bg-primary: #0F0F12;
-    --bg-surface: #1A1A1F;
-    --border: #2A2A31;
-    --text-primary: #F4F4F5;
-    --text-secondary: #A1A1AA;
-    --accent: #818CF8;
-    --accent-hover: #6366F1;
-    --success: #4ADE80;
-    --warning: #FBBF24;
-    --danger: #F87171;
+    color-scheme: dark;
 
-    --popover: var(--bg-surface);
-    --popover-foreground: var(--text-primary);
-    --muted-foreground: var(--text-secondary);
-    --accent-foreground: var(--text-primary);
-    --foreground: var(--text-primary);
+    --background:    #121816;
+    --surface:       #18201E;
+    --surface-raised:#1E2825;
+    --surface-muted: #242E2B;
+    --surface-hover: #2B3733;
+
+    --foreground:           #EEF2ED;
+    --foreground-secondary: #C1CAC5;
+    --foreground-muted:     #909B96;
+    --foreground-subtle:    #727E79;
+
+    --border:        #34413D;
+    --border-strong: #4A5954;
+
+    --primary:            #5CB8AA;
+    --primary-hover:      #72C8BA;
+    --primary-soft:       #203E39;
+    --primary-foreground: #121816;
+
+    --secondary:            #E08A68;
+    --secondary-soft:       #452E26;
+    --secondary-foreground: #121816;
+
+    --highlight:      #E0B75E;
+    --highlight-soft: #403821;
+
+    --success:      #6DB58A;
+    --success-soft: #244132;
+    --warning:      #D3A34E;
+    --warning-soft: #40351E;
+    --danger:       #D97873;
+    --danger-soft:  #452624;
+
+    --canvas-background: #111715;
+    --canvas-grid:       rgba(184, 205, 197, 0.08);
+    --focus-ring: rgba(92, 184, 170, 0.32);
+
+    --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.3),  0 1px 2px -1px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.4), 0 2px 6px -2px rgba(0,0,0,0.3);
+
+    --sticky-yellow: #3A3520;
+    --sticky-pink:   #3A2520;
+    --sticky-blue:   #1C2C3A;
+    --sticky-green:  #1E3028;
+    --sticky-orange: #3A2A1A;
+
+    --bg-primary:   var(--background);
+    --bg-surface:   var(--surface);
+    --accent:       var(--primary);
+    --accent-hover: var(--primary-hover);
+    --text-primary:   var(--foreground);
+    --text-secondary: var(--foreground-secondary);
+
+    --ai-action:    var(--primary);
+    --ai-decision:  var(--secondary);
+    --ai-question:  var(--highlight);
+    --ai-reference: var(--foreground-muted);
+
+    --popover:            var(--surface);
+    --popover-foreground: var(--foreground);
+    --muted-foreground:   var(--foreground-muted);
+    --accent-foreground:  var(--foreground);
+    --muted:              var(--surface-muted);
+    --input:              var(--border);
+    --ring:               var(--focus-ring);
+    --destructive:        var(--danger);
   }
 }
 
-.dark {
-  --bg-primary: #0F0F12;
-  --bg-surface: #1A1A1F;
-  --border: #2A2A31;
-  --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --accent: #818CF8;
-  --accent-hover: #6366F1;
-  --success: #4ADE80;
-  --warning: #FBBF24;
-  --danger: #F87171;
-
-  --popover: var(--bg-surface);
-  --popover-foreground: var(--text-primary);
-  --muted-foreground: var(--text-secondary);
-  --accent-foreground: var(--text-primary);
-  --foreground: var(--text-primary);
-}
-
+/* ─────────────────────────────────────────────────────────────────────────────
+   GLOBAL BASE                                                                     
+   ───────────────────────────────────────────────────────────────────────────── */
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   margin: 0;
   padding: 0;
 }
 
-/* ── @base-ui DropdownMenu / Menu popup theming ──────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   SCROLLBARS — unified minimal style
+   ───────────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   @base-ui DROPDOWN / MENU POPUP THEMING
+   ───────────────────────────────────────────────────────────────────────────── */
 [data-slot="dropdown-menu-content"],
 [data-slot="dropdown-menu-sub-content"] {
-  background-color: var(--bg-surface) !important;
+  background-color: var(--surface-raised) !important;
   border: 1px solid var(--border) !important;
-  color: var(--text-primary) !important;
+  color: var(--foreground) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
 [data-slot="dropdown-menu-item"]:focus,
 [data-slot="dropdown-menu-item"]:hover {
-  background-color: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--surface-hover) !important;
+  color: var(--foreground) !important;
 }
 
-/* ── @base-ui Popover popup theming ──────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   @base-ui POPOVER POPUP THEMING
+   ───────────────────────────────────────────────────────────────────────────── */
 [data-slot="popover-content"] {
-  background-color: var(--bg-surface) !important;
+  background-color: var(--surface-raised) !important;
   border: 1px solid var(--border) !important;
-  color: var(--text-primary) !important;
+  color: var(--foreground) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
-/* ── Task Board ─────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   NAVIGATION RAIL TOOLTIP
+   ───────────────────────────────────────────────────────────────────────────── */
+.nav-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 60;
+}
+.nav-rail-item:hover .nav-tooltip {
+  opacity: 1;
+}
 
-/* react-day-picker dark-mode overrides */
+/* ─────────────────────────────────────────────────────────────────────────────
+   TASK BOARD — react-day-picker overrides
+   ───────────────────────────────────────────────────────────────────────────── */
 .task-date-picker .rdp-root {
-  --rdp-accent-color: var(--accent);
-  --rdp-accent-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
-  --rdp-background-color: var(--bg-primary);
-  --rdp-selected-border: var(--accent);
-  color: var(--text-primary);
+  --rdp-accent-color: var(--primary);
+  --rdp-accent-background-color: var(--primary-soft);
+  --rdp-background-color: var(--surface);
+  --rdp-selected-border: var(--primary);
+  color: var(--foreground);
   font-size: 12px;
 }
 
 .task-date-picker .rdp-day_button {
-  color: var(--text-primary);
+  color: var(--foreground);
   border-radius: 6px;
   width: 30px;
   height: 30px;
@@ -148,12 +409,12 @@ body {
 }
 
 .task-date-picker .rdp-day_button:hover:not([disabled]) {
-  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  background-color: var(--primary-soft);
 }
 
 .task-date-picker .rdp-day[data-selected="true"] .rdp-day_button {
-  background-color: var(--accent);
-  color: white;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .task-date-picker .rdp-day[data-disabled="true"] .rdp-day_button {
@@ -162,20 +423,20 @@ body {
 }
 
 .task-date-picker .rdp-nav_button {
-  color: var(--text-secondary);
+  color: var(--foreground-secondary);
   border-radius: 6px;
   width: 28px;
   height: 28px;
 }
 
 .task-date-picker .rdp-nav_button:hover {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--surface-muted);
+  color: var(--foreground);
 }
 
 .task-date-picker .rdp-caption_label,
 .task-date-picker .rdp-head_cell {
-  color: var(--text-secondary);
+  color: var(--foreground-secondary);
   font-size: 11px;
   font-weight: 600;
 }
@@ -184,18 +445,17 @@ body {
   border-spacing: 2px;
 }
 
-/* Smooth task row transitions */
+/* ─────────────────────────────────────────────────────────────────────────────
+   MOTION SYSTEM — premium micro-animations
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Smooth task row entry */
 @keyframes task-slide-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* ─────────────────────────────────────────────────────────────────────────────
-   Phase 13 — Time Travel Replay
-   Animation helpers used by ReplayCanvas / ReplayHistorySidebar / ReplayTaskPanel.
-   Kept GPU-friendly: only transform + opacity, so timeline scrubbing remains
-   smooth even with hundreds of nodes.
-   ───────────────────────────────────────────────────────────────────────────── */
 
+/* Replay animations */
 @keyframes replay-fade-in-scale {
   from { opacity: 0; transform: scale(0.94); }
   to   { opacity: 1; transform: scale(1); }
@@ -207,20 +467,105 @@ body {
 }
 
 @keyframes replay-pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  70%  { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  0%   { box-shadow: 0 0 0 0   var(--primary-soft); }
+  70%  { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0   transparent; }
 }
 
+/* Skeleton pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Navigation panel slide */
+@keyframes panel-slide-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.panel-slide-in {
+  animation: panel-slide-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Chat drawer slide */
+@keyframes drawer-slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.drawer-slide-in {
+  animation: drawer-slide-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REPLAY CANVAS
+   ───────────────────────────────────────────────────────────────────────────── */
 .replay-canvas-root .konvajs-content {
   transition: filter 200ms ease-out;
 }
 
-.replay-canvas-root ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+.replay-canvas-root ::-webkit-scrollbar { width: 6px; height: 6px; }
 .replay-canvas-root ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--border-strong);
   border-radius: 3px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REDUCED MOTION
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CANVAS CHAT DRAWER
+   ───────────────────────────────────────────────────────────────────────────── */
+.canvas-chat-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 25;
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 1279px) {
+  .canvas-chat-drawer {
+    width: 320px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FOCUS VISIBLE — global accessible ring
+   ───────────────────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BRAND MARK SVG
+   ───────────────────────────────────────────────────────────────────────────── */
+.brand-node {
+  fill: var(--primary);
+  transition: fill 200ms ease;
+}
+.brand-line {
+  stroke: var(--primary);
+  opacity: 0.5;
+  transition: stroke 200ms ease;
 }

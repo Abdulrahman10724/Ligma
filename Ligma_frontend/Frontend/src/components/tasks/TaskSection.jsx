@@ -44,9 +44,9 @@ function BulkActionBar({ count, onDeleteSelected, onClear }) {
           key="bulk-bar"
           initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.15 }}
-          className="flex items-center gap-3 px-4 h-9 bg-[color:var(--accent)]/10 border-b border-[color:var(--accent)]/20"
+          className="flex items-center gap-3 px-4 h-9 bg-[color:var(--primary-soft)] border-b border-[color:var(--primary)]/20"
         >
-          <span className="text-xs font-medium text-[color:var(--accent)]">{count} selected</span>
+          <span className="text-xs font-medium text-[color:var(--primary)]">{count} selected</span>
           <button type="button" onClick={onDeleteSelected}
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors">
             <Trash2 className="w-3.5 h-3.5" /> Delete selected

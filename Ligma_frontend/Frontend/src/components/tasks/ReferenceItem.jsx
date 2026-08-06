@@ -22,7 +22,7 @@ function UrlLink({ url }) {
       href={toHref(url)}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-start gap-1.5 text-[11px] text-[color:var(--accent)] hover:underline break-all"
+      className="flex items-start gap-1.5 text-[11px] text-[color:var(--primary)] hover:underline break-all"
     >
       <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
       <span>{display || url}</span>
@@ -47,8 +47,8 @@ export const ReferenceItem = memo(function ReferenceItem({ task }) {
       transition={{ duration: 0.15 }}
       className="group flex items-start gap-3 px-4 py-3 border-b border-[color:var(--border)] hover:bg-[color:var(--bg-surface)] transition-colors"
     >
-      <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-violet-500/15 flex items-center justify-center">
-        <Link2 className="w-3 h-3 text-violet-400" />
+      <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-[color:var(--surface-muted)] border border-[color:var(--border)] flex items-center justify-center">
+        <Link2 className="w-3 h-3 text-[color:var(--foreground-muted)]" />
       </span>
 
       <div className="flex-1 min-w-0">

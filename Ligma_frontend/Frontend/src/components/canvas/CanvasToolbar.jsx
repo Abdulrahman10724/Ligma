@@ -1,21 +1,16 @@
 import { Lock, MousePointer2, Minus, Settings2, Square, Circle, StickyNote, Type, Unlock } from "lucide-react";
 
 const TOOLS = [
-  { id: "select", label: "Select", icon: MousePointer2 },
-  { id: "sticky", label: "Sticky", icon: StickyNote },
-  { id: "text", label: "Text", icon: Type },
-  { id: "rectangle", label: "Rectangle", icon: Square },
-  { id: "circle", label: "Circle", icon: Circle },
-  { id: "arrow", label: "Arrow", icon: Minus },
+  { id: "select",    label: "Select",    icon: MousePointer2 },
+  { id: "sticky",    label: "Sticky",    icon: StickyNote },
+  { id: "text",      label: "Text",      icon: Type },
+  { id: "rectangle", label: "Rect",      icon: Square },
+  { id: "circle",    label: "Circle",    icon: Circle },
+  { id: "arrow",     label: "Arrow",     icon: Minus },
 ];
 
 const COLORS = [
-  "#FDE68A",
-  "#BFDBFE",
-  "#FDBA74",
-  "#BBF7D0",
-  "#F9A8D4",
-  "#D8B4FE",
+  "#FDE68A", "#BFDBFE", "#FDBA74", "#BBF7D0", "#F9A8D4", "#D8B4FE",
 ];
 
 export default function CanvasToolbar({
@@ -32,8 +27,9 @@ export default function CanvasToolbar({
   const tools = canEdit ? TOOLS : TOOLS.filter((tool) => tool.id === "select");
 
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 bottom-6 z-20 flex items-end gap-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-3 py-2 shadow-xl backdrop-blur-sm">
-      <div className="flex items-center gap-1">
+    <div className="absolute left-1/2 -translate-x-1/2 top-4 z-20 flex items-center gap-1.5 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1.5 shadow-[var(--shadow-md)] backdrop-blur-sm">
+      {/* Tool buttons */}
+      <div className="flex items-center gap-0.5">
         {tools.map(({ id, label, icon: Icon }) => {
           const isActive = activeTool === id;
           return (
@@ -41,19 +37,23 @@ export default function CanvasToolbar({
               key={id}
               onClick={() => onToolChange(id)}
               title={label}
-              className={`flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl text-xs font-medium transition-all ${
+              aria-label={label}
+              aria-pressed={isActive}
+              className={[
+                "relative flex flex-col items-center justify-center gap-0.5 w-11 h-11 rounded-lg text-[10px] font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[color:var(--accent)] text-white shadow-sm"
-                  : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-primary)] hover:text-[color:var(--text-primary)]"
-              }`}
+                  ? "bg-[color:var(--primary-soft)] text-[color:var(--primary)]"
+                  : "text-[color:var(--foreground-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)]",
+              ].join(" ")}
             >
-              <Icon className="w-4 h-4" strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[10px] leading-none">{label}</span>
+              <Icon className={`w-4 h-4 ${isActive ? "stroke-[2.2]" : "stroke-[1.8]"}`} />
+              <span className="text-[9px] leading-none opacity-80">{label}</span>
             </button>
           );
         })}
       </div>
 
+      {/* Color swatches */}
       {canEdit && (
         <div className="flex items-center gap-1 border-l border-[color:var(--border)] pl-2">
           {COLORS.map((color) => {
@@ -63,7 +63,13 @@ export default function CanvasToolbar({
                 key={color}
                 onClick={() => onColorChange(color)}
                 title={color}
-                className={`h-7 w-7 rounded-full border transition-all ${isActive ? "scale-110 border-[color:var(--text-primary)] shadow-sm" : "border-white/60"}`}
+                aria-label={`Color ${color}`}
+                className={[
+                  "h-6 w-6 rounded-full transition-all duration-150",
+                  isActive
+                    ? "scale-125 ring-2 ring-[color:var(--foreground)] ring-offset-1 ring-offset-[color:var(--surface)]"
+                    : "hover:scale-110 ring-1 ring-[color:var(--border)]",
+                ].join(" ")}
                 style={{ backgroundColor: color }}
               />
             );
@@ -71,23 +77,24 @@ export default function CanvasToolbar({
         </div>
       )}
 
+      {/* Lock + Permissions (Lead + selected node) */}
       {selectedNode && isLead && (
         <div className="flex items-center gap-1 border-l border-[color:var(--border)] pl-2">
           <button
             onClick={onToggleLock}
             title={selectedNode.locked ? "Unlock node" : "Lock node"}
-            className="flex items-center gap-1 rounded-xl border border-[color:var(--border)] px-3 py-2 text-xs font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--bg-primary)] transition-colors"
+            className="flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--foreground-secondary)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
           >
-            {selectedNode.locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            {selectedNode.locked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
             {selectedNode.locked ? "Unlock" : "Lock"}
           </button>
           <button
             onClick={onOpenPermissions}
             title="Edit permissions"
-            className="flex items-center gap-1 rounded-xl border border-[color:var(--border)] px-3 py-2 text-xs font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--bg-primary)] transition-colors"
+            className="flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--foreground-secondary)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
           >
-            <Settings2 className="h-4 w-4" />
-            Permissions
+            <Settings2 className="h-3.5 w-3.5" />
+            Perms
           </button>
         </div>
       )}

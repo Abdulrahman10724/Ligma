@@ -43,7 +43,7 @@ export function ChatErrorState({ title = "Unable to load chat", description, onR
           {description || "Try again in a moment. If this continues, refresh the workspace connection and re-open the channel."}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <Button onClick={onRetry} className="rounded-2xl bg-gradient-to-r from-[color:var(--accent)] to-fuchsia-500 text-white">
+          <Button onClick={onRetry} className="rounded-2xl bg-[color:var(--primary)] hover:bg-[color:var(--primary-hover)] text-[color:var(--primary-foreground)] transition-colors">
             <RefreshCcw className="mr-2 h-4 w-4" /> Retry
           </Button>
           <Button onClick={onRefresh} variant="outline" className="rounded-2xl">
@@ -59,7 +59,7 @@ export function EmptyChatState({ channelName }) {
   return (
     <div className="flex h-full min-h-80 items-center justify-center p-6">
       <div className="max-w-lg rounded-[32px] border border-[color:var(--border)] bg-[color:var(--bg-surface)] px-8 py-10 text-center shadow-[0_30px_90px_-50px_rgba(15,23,42,0.58)]">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-[color:var(--accent)]/15 to-fuchsia-500/15 text-[color:var(--accent)]">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-[color:var(--primary-soft)] text-[color:var(--primary)]">
           <MessagesSquare className="h-8 w-8" />
         </div>
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--text-secondary)]">

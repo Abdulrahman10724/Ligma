@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { Outlet, useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import { LayoutDashboard, Milestone, MessageSquare, Users, History, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Milestone, MessageSquare, Users, History, Settings } from "lucide-react";
 
 import { fetchWorkspaceById, clearActiveWorkspace } from "../redux/workspaceSlice";
 import { clearMembers, setMemberRoleLocally, removeMemberLocally } from "../redux/memberSlice";
 import AccountMenu from "../components/layout/AccountMenu";
-import LogoutButton from "../components/layout/LogoutButton";
 import InvitationInboxMenu from "../components/layout/InvitationInboxMenu";
+import WorkspaceNavigationRail from "../components/layout/WorkspaceNavigationRail";
+import WorkspaceNavigationPanel from "../components/layout/WorkspaceNavigationPanel";
+import ThemeToggle from "../components/ui/ThemeToggle";
 import useSocket from "../hooks/useSocket";
 
 export default function WorkspacePage() {
@@ -20,6 +22,12 @@ export default function WorkspacePage() {
   const { status, on, off } = useSocket({ workspaceId: id, autoJoin: true });
   const [presenceUsers, setPresenceUsers] = useState([]);
 
+  /* Presentational-only: expansion state, local, not in Redux */
+  const [isNavExpanded, setIsNavExpanded] = useState(false);
+  const handleToggleNav = useCallback(() => setIsNavExpanded((v) => !v), []);
+  const handleCloseNav = useCallback(() => setIsNavExpanded(false), []);
+
+  /* ── Data + socket effects — unchanged from original ─────────────────── */
   useEffect(() => {
     if (id) {
       dispatch(fetchWorkspaceById(id));
@@ -37,9 +45,7 @@ export default function WorkspacePage() {
       off("workspace:presence", handlePresence);
     };
   }, [id, on, off]);
- 
 
-  // Issue 2 — keep member roles synced across every connected client in real time.
   useEffect(() => {
     const handleRoleUpdated = (payload) => {
       if (payload?.workspaceId !== id || !payload?.member) return;
@@ -52,7 +58,6 @@ export default function WorkspacePage() {
     };
   }, [dispatch, id, on, off]);
 
-  // Issue 3 — removed member gets kicked out immediately; everyone else's list updates live.
   useEffect(() => {
     const handleMemberRemoved = (payload) => {
       if (payload?.workspaceId !== id || !payload?.userId) return;
@@ -74,93 +79,93 @@ export default function WorkspacePage() {
     };
   }, [currentUser?.id, dispatch, id, navigate, on, off]);
 
+  /* ── Navigation definition — same routes, new icons preserved ─────────── */
   const navigation = [
-    { name: "Canvas", href: `/workspace/${id}/canvas`, icon: LayoutDashboard },
-    { name: "Tasks", href: `/workspace/${id}/tasks`, icon: Milestone },
-    { name: "Chat", href: `/workspace/${id}/chat`, icon: MessageSquare },
-    { name: "Members", href: `/workspace/${id}/members`, icon: Users },
-    { name: "History", href: `/workspace/${id}/history`, icon: History },
+    { name: "Canvas",   href: `/workspace/${id}/canvas`,   icon: LayoutDashboard },
+    { name: "Tasks",    href: `/workspace/${id}/tasks`,    icon: Milestone },
+    { name: "Chat",     href: `/workspace/${id}/chat`,     icon: MessageSquare },
+    { name: "Members",  href: `/workspace/${id}/members`,  icon: Users },
+    { name: "History",  href: `/workspace/${id}/history`,  icon: History },
     { name: "Settings", href: `/workspace/${id}/settings`, icon: Settings },
   ];
 
-  return (
-    <div className="flex h-screen bg-[color:var(--bg-primary)] text-[color:var(--text-primary)] overflow-hidden">
-      {/* Left Sidebar */}
-      <aside className="w-60 bg-[color:var(--bg-surface)] border-r border-[color:var(--border)] flex flex-col justify-between">
-        <div>
-          <div className="h-16 flex items-center px-6 border-b border-[color:var(--border)]">
-            <span className="text-xl font-black text-[color:var(--accent)] tracking-wider">LIGMA</span>
-          </div>
-          <nav className="p-4 space-y-1">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
-                      ? "bg-[color:var(--bg-primary)] text-[color:var(--accent)] border-l-4 border-[color:var(--accent)]"
-                      : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-primary)] hover:text-[color:var(--text-primary)]"
-                    }`
-                  }
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.name}
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="p-4 border-t border-[color:var(--border)]">
-          <NavLink
-            to="/dashboard"
-            className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-primary)] hover:text-red-500 rounded-md transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            Exit Workspace
-          </NavLink>
-        </div>
-      </aside>
+  /* ── Connection status dot ─────────────────────────────────────────────── */
+  const statusDot =
+    status === "connected"
+      ? "bg-[color:var(--success)]"
+      : status === "reconnecting" || status === "connecting"
+      ? "bg-[color:var(--highlight)]"
+      : "bg-[color:var(--foreground-muted)]";
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Navbar */}
-        <header className="h-16 bg-[color:var(--bg-surface)] border-b border-[color:var(--border)] flex items-center justify-between px-8 z-10">
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--text-secondary)]">Workspace</p>
-              <h1 className="text-sm font-semibold text-[color:var(--text-primary)]">{activeWorkspace?.title || "Loading workspace..."}</h1>
+  return (
+    <div className="flex h-screen bg-[color:var(--background)] text-[color:var(--foreground)] overflow-hidden">
+
+      {/* ── Navigation Rail (always visible, 60px) ────────────────────────── */}
+      <WorkspaceNavigationRail
+        navigation={navigation}
+        isExpanded={isNavExpanded}
+        onToggle={handleToggleNav}
+      />
+
+      {/* ── Expandable Navigation Panel (216px, overlay on tablet) ───────── */}
+      {isNavExpanded && (
+        <WorkspaceNavigationPanel
+          navigation={navigation}
+          workspaceName={activeWorkspace?.title}
+          onClose={handleCloseNav}
+        />
+      )}
+
+      {/* ── Main Content Area ─────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
+        {/* Top Header — 56px */}
+        <header className="h-14 bg-[color:var(--surface)] border-b border-[color:var(--border)] flex items-center justify-between px-5 z-10 shrink-0">
+
+          {/* Left: workspace info + connection + presence */}
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold text-[color:var(--foreground)] truncate leading-tight">
+                {activeWorkspace?.title || "Loading…"}
+              </h1>
             </div>
-            <div className="ml-3 hidden items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-2.5 py-1 md:flex">
-              <span className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "reconnecting" || status === "connecting" ? "bg-amber-500" : "bg-zinc-400"}`} />
-              <span className="text-xs text-[color:var(--text-secondary)] capitalize">{status}</span>
+
+            {/* Connection badge */}
+            <div className="hidden items-center gap-1.5 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-muted)] px-2.5 py-1 md:flex">
+              <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
+              <span className="text-xs text-[color:var(--foreground-muted)] capitalize">{status}</span>
             </div>
-            <div className="hidden items-center -space-x-2 md:flex">
-              {presenceUsers.slice(0, 6).map((user) => (
-                <span
-                  key={user.userId}
-                  title={user.name || user.email}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--bg-surface)] bg-[color:var(--accent)] text-[10px] font-semibold text-white"
-                >
-                  {(user.name || user.email || "?")
-                    .split(" ")
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((part) => part[0]?.toUpperCase())
-                    .join("") || "?"}
-                </span>
-              ))}
-              {presenceUsers.length > 6 ? (
-                <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-[color:var(--bg-surface)] bg-[color:var(--bg-primary)] px-1 text-[10px] font-semibold text-[color:var(--text-secondary)]">
-                  +{presenceUsers.length - 6}
-                </span>
-              ) : null}
-            </div>
+
+            {/* Presence avatar stack */}
+            {presenceUsers.length > 0 && (
+              <div className="hidden items-center -space-x-2 md:flex">
+                {presenceUsers.slice(0, 5).map((user) => (
+                  <span
+                    key={user.userId}
+                    title={user.name || user.email}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-[color:var(--surface)] bg-[color:var(--primary)] text-[10px] font-semibold text-[color:var(--primary-foreground)]"
+                  >
+                    {(user.name || user.email || "?")
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part) => part[0]?.toUpperCase())
+                      .join("") || "?"}
+                  </span>
+                ))}
+                {presenceUsers.length > 5 && (
+                  <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-[color:var(--surface)] bg-[color:var(--surface-muted)] px-1 text-[10px] font-semibold text-[color:var(--foreground-secondary)]">
+                    +{presenceUsers.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Right: theme + inbox + account */}
+          <div className="flex items-center gap-2 shrink-0">
+            <ThemeToggle variant="icon" />
             <InvitationInboxMenu />
-            <LogoutButton />
             <AccountMenu />
           </div>
         </header>

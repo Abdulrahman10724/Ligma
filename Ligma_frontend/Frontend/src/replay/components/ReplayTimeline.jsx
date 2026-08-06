@@ -135,7 +135,7 @@ export default function ReplayTimeline() {
         <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-[color:var(--bg-primary)] border border-[color:var(--border)] overflow-hidden">
           {/* Progress fill (gradient) */}
           <div
-            className="h-full bg-gradient-to-r from-[color:var(--accent)] via-indigo-500 to-purple-500 transition-[width] duration-100 ease-out"
+            className="h-full bg-[color:var(--primary)] transition-[width] duration-100 ease-out"
             style={{ width: `${percent}%` }}
           />
         </div>

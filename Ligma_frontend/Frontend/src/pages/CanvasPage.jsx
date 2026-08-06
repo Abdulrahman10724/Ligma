@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Check } from "lucide-react";
+import { Check, MessageSquare } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer, Path } from "react-konva";
 import ToolStylePanel, { STROKE_COLORS, BACKGROUND_COLORS } from "../components/canvas/ToolStylePanel";
@@ -11,6 +11,7 @@ import useSocket from "../hooks/useSocket";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { computeNodePermissions, useNodePermissions } from "../hooks/useNodePermissions";
 import { useWorkspaceRole } from "../hooks/useWorkspaceRole";
+import CanvasChatDrawer from "../components/chat/CanvasChatDrawer";
 
 import { fetchWorkspaceMembers } from "../redux/memberSlice";
 
@@ -41,8 +42,14 @@ import CanvasPresenceLayer from "../components/presence/CanvasPresenceLayer";
 import usePresenceZones from "../hooks/usePresenceZones";
 
 const GRID_SIZE = 40;
-const GRID_COLOR = "#E4E4E7";
-const DARK_GRID_COLOR = "#2A2A31";
+// Grid color read from CSS custom property so it respects the active theme
+function getCanvasGridColor() {
+  return (
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--canvas-grid")
+      .trim() || "rgba(50,70,65,0.10)"
+  );
+}
 
 // Default data payloads for each node type
 const DEFAULT_NODE_DATA = {
@@ -50,7 +57,7 @@ const DEFAULT_NODE_DATA = {
   text: { text: "Text block", fontSize: 16, color: "#18181B", width: 180, height: 48 },
   rectangle: { width: 160, height: 100, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
   circle: { radius: 60, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
-  arrow: { dx: 150, dy: 0, color: "#6366F1", label: "" },
+  arrow: { dx: 150, dy: 0, color: "#0F766E", label: "" },
 };
 
 const MIN_DIMENSIONS = {
@@ -149,6 +156,8 @@ export default function CanvasPage() {
   const [toolEdges, setToolEdges] = useState("round");
   const [toolOpacity, setToolOpacity] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  // Presentational-only chat drawer state — does not touch canvas, socket, or Redux canvas logic
+  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [draftAllowedUserIds, setDraftAllowedUserIds] = useState([]);
 const [savingPermissions, setSavingPermissions] = useState(false);
@@ -161,6 +170,7 @@ const [savingPermissions, setSavingPermissions] = useState(false);
   const clipboardNodeRef = useRef(null);
   const dragEmitRef = useRef(0);
   const draggingNodeRef = useRef(false);
+  const editingNodeIdRef = useRef(null);
   // const resizeEmitRef = useRef(0);
   const cursorEmitRef = useRef(0);
   const textEmitTimerRef = useRef(null);
@@ -236,7 +246,8 @@ useEffect(() => {
     viewport.x,
     viewport.y
   );
-  const gridColor = isDarkMode ? DARK_GRID_COLOR : GRID_COLOR;
+  // Re-compute from CSS property on each render (reactive to isDarkMode state changes)
+  const gridColor = getCanvasGridColor();
 
   const getCanvasPoint = useCallback(() => {
     const stage = stageRef.current;
@@ -418,6 +429,14 @@ useEffect(() => {
         if (!node) return;
         const textKey = NODE_TEXT_KEYS[node.type];
         dispatch(updateNodeDataLocally({ nodeId: payload.nodeId, patch: { [textKey]: payload.value } }));
+
+        // Collaborative live-sync: if we are ALSO currently editing this exact
+        // node, mirror the incoming keystroke into our own textarea so both
+        // editors see each other's changes in real time instead of only
+        // after save (Google-Docs-style live preview).
+        if (editingNodeIdRef.current === payload.nodeId) {
+          setEditingValue(payload.value);
+        }
       }
     };
     const handleNodeResize = (payload) => {
@@ -1224,12 +1243,15 @@ const buildPresetData = useCallback(
     [dispatch, emit, handleArrowEndpointDragMove, isShiftPressed, nodesMap, workspaceId, workspaceRole,currentUser?.id]
   );
 
-  const latestNodesRef = useRef(nodesMap);
+ const latestNodesRef = useRef(nodesMap);
 
   useEffect(() => {
     latestNodesRef.current = nodesMap;
   }, [nodesMap]);
 
+  useEffect(() => {
+    editingNodeIdRef.current = editingNodeId;
+  }, [editingNodeId]);
   const colorEmitTimersRef = useRef({});
 
   const handleInspectorChange = useCallback(
@@ -1506,7 +1528,7 @@ const handleSavePermissions = useCallback(async () => {
     : null;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[color:var(--bg-primary)]">
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[color:var(--canvas-background)]">
       {/* Loading Overlay */}
       {loading && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-[color:var(--bg-primary)]/80 backdrop-blur-sm">
@@ -2004,9 +2026,25 @@ const handleSavePermissions = useCallback(async () => {
   </DialogContent>
 </Dialog>
   {/* Zoom indicator */}
-      <div className="absolute bottom-20 right-4 z-10 text-xs text-[color:var(--text-secondary)] bg-[color:var(--bg-surface)] border border-[color:var(--border)] rounded-lg px-2.5 py-1.5 shadow-sm font-mono">
+      <div className="absolute bottom-6 right-16 z-10 text-xs text-[color:var(--foreground-muted)] bg-[color:var(--surface)] border border-[color:var(--border)] rounded-lg px-2.5 py-1.5 shadow-sm font-mono select-none">
         {Math.round(viewport.scale * 100)}%
       </div>
+
+      {/* Chat drawer toggle button — bottom-right, does not overlap zoom controls */}
+      <button
+        type="button"
+        onClick={() => setIsChatDrawerOpen((v) => !v)}
+        title={isChatDrawerOpen ? "Close team chat" : "Open team chat"}
+        aria-label={isChatDrawerOpen ? "Close team chat" : "Open team chat"}
+        className={[
+          "absolute bottom-6 right-4 z-20 w-9 h-9 rounded-xl flex items-center justify-center border shadow-[var(--shadow-sm)] transition-all duration-150",
+          isChatDrawerOpen
+            ? "bg-[color:var(--primary)] border-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+            : "bg-[color:var(--surface)] border-[color:var(--border)] text-[color:var(--foreground-secondary)] hover:border-[color:var(--primary)]/50 hover:text-[color:var(--primary)]",
+        ].join(" ")}
+      >
+        <MessageSquare className="w-4 h-4" />
+      </button>
 
       {/* Empty state */}
       {!loading && nodes.length === 0 && (
@@ -2016,6 +2054,13 @@ const handleSavePermissions = useCallback(async () => {
           </p>
         </div>
       )}
+      {/* CanvasChatDrawer — presentational open/close, reuses existing chat components */}
+      <CanvasChatDrawer
+        workspaceId={workspaceId}
+        open={isChatDrawerOpen}
+        onClose={() => setIsChatDrawerOpen(false)}
+        currentUser={currentUser}
+      />
     </div>
   );
 }

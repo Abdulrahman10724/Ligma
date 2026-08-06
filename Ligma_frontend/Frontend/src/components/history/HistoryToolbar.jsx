@@ -59,8 +59,8 @@ export default function HistoryToolbar({
       <div className="flex items-center gap-2 flex-wrap">
         {/* Event Count Badge */}
         <div className="flex items-center gap-1.5 bg-[color:var(--bg-primary)] border border-[color:var(--border)] px-2.5 py-1 rounded-lg text-xs font-medium">
-          <span className="text-[color:var(--text-secondary)]">Events:</span>
-          <span className="text-[color:var(--accent)] bg-[color:var(--accent)]/10 px-2 py-0.5 rounded-full text-[10px] font-bold">
+          <span className="text-[color:var(--foreground-muted)]">Events:</span>
+          <span className="text-[color:var(--primary)] bg-[color:var(--primary-soft)] px-2 py-0.5 rounded-full text-[10px] font-bold">
             {totalEventsCount}
           </span>
         </div>

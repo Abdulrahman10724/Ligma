@@ -67,7 +67,7 @@ export default function ReplayHistorySidebar() {
                     onClick={() => dispatch(seekToIndex(i))}
                     className={`w-full text-left flex items-start gap-2.5 px-2.5 py-2 rounded-lg border transition-all cursor-pointer ${
                       isActive
-                        ? "bg-gradient-to-r from-[color:var(--accent)]/15 to-purple-500/10 border-[color:var(--accent)]/50 shadow-sm scale-[1.01]"
+                        ? "bg-[color:var(--primary-soft)] border-[color:var(--primary)]/50 shadow-sm scale-[1.01]"
                         : isPast
                           ? "bg-transparent border-transparent hover:bg-[color:var(--bg-primary)] hover:border-[color:var(--border)]/60 opacity-70"
                           : "bg-transparent border-transparent hover:bg-[color:var(--bg-primary)] hover:border-[color:var(--border)]/60"

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import { fetchWorkspaceById, updateWorkspace } from "../redux/workspaceSlice";
 import { fetchWorkspaceInvitations } from "../redux/invitationSlice";
 import InviteMemberDialog from "../components/invitations/InviteMemberDialog";
 import { PendingInvitationList, InvitationHistoryList } from "../components/invitations/InvitationList";
+import ThemeToggle from "../components/ui/ThemeToggle";
 
 const schema = z.object({
   title: z.string().trim().min(2, "Workspace name must be at least 2 characters long"),
@@ -107,6 +108,18 @@ export default function SettingsPage() {
           ) : (
             <p className="mt-4 text-sm text-[color:var(--text-secondary)]">Only the workspace owner can create or manage invitations.</p>
           )}
+        </div>
+
+        <div className="border-b border-[color:var(--border)] p-6">
+          <h3 className="text-lg font-semibold">Appearance</h3>
+          <p className="mt-1 text-sm text-[color:var(--text-secondary)] mb-5">Customize your workspace appearance.</p>
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <div className="font-medium text-sm text-[color:var(--text-primary)]">Theme preference</div>
+              <div className="text-xs text-[color:var(--text-secondary)]">Light, dark, or system preference</div>
+            </div>
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="p-6">

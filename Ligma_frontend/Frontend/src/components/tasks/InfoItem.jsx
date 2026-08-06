@@ -27,8 +27,8 @@ export const InfoItem = memo(function InfoItem({
       className="group flex items-start gap-3 px-4 py-3 border-b border-[color:var(--border)] hover:bg-[color:var(--bg-surface)] transition-colors"
     >
       {/* Icon */}
-      <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center">
-        <Info className="w-3 h-3 text-amber-400" />
+      <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-[color:var(--highlight-soft)] flex items-center justify-center">
+        <Info className="w-3 h-3 text-[color:var(--warning)]" />
       </span>
 
       {/* Content */}

@@ -19,7 +19,7 @@ function SuggestionList({ title, items, onSelect, emptyLabel }) {
               onClick={() => onSelect(item)}
               className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[color:var(--bg-primary)]"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-[color:var(--accent)] to-fuchsia-500 text-xs font-semibold text-white shadow-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[color:var(--primary)] text-xs font-semibold text-[color:var(--primary-foreground)] shadow-sm">
                 {getInitials(item.name || item.email || item.data?.text || item.type || "?")}
               </span>
               <div className="min-w-0">
@@ -173,7 +173,7 @@ export default function MessageComposer({
               </Button>
             </div>
 
-            <Button type="button" onClick={sendMessage} disabled={disabled || !value.trim()} className="rounded-2xl bg-gradient-to-r from-[color:var(--accent)] to-fuchsia-500 px-5 text-white shadow-lg hover:brightness-110">
+            <Button type="button" onClick={sendMessage} disabled={disabled || !value.trim()} className="rounded-2xl bg-[color:var(--primary)] hover:bg-[color:var(--primary-hover)] px-5 text-[color:var(--primary-foreground)] shadow-lg transition-colors">
               <SendHorizonal className="mr-2 h-4 w-4" /> Send
             </Button>
           </div>
