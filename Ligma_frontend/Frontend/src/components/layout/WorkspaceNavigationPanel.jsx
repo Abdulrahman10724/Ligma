@@ -21,7 +21,7 @@ export default function WorkspaceNavigationPanel({
     <>
       {/* Tablet overlay backdrop */}
       <div
-        className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+        className="fixed inset-0 z-30 cursor-pointer bg-black/20 lg:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -44,7 +44,7 @@ export default function WorkspaceNavigationPanel({
             onClick={onClose}
             aria-label="Collapse navigation"
             title="Collapse navigation"
-            className="w-7 h-7 flex items-center justify-center rounded-md text-[color:var(--foreground-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
+            className="w-7 h-7 flex cursor-pointer items-center justify-center rounded-md text-[color:var(--foreground-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

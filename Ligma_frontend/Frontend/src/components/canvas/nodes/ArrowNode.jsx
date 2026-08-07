@@ -1,4 +1,4 @@
-import { Group, Arrow, Circle, Text } from "react-konva";
+import { Group, Arrow, Circle, Line, Text } from "react-konva";
 
 // ArrowNode renders as a directed arrow from (x,y) to (x+dx, y+dy)
 // data.dx and data.dy encode the vector; defaults to a 150px horizontal arrow
@@ -21,6 +21,7 @@ export default function ArrowNode({
   const dy = data.dy ?? 0;
   const stroke = data.color || "#6366F1";
   const isLocked = Boolean(permissions?.isLocked);
+  const isLine = node.type === "line";
 
   return (
     <Group
@@ -48,24 +49,48 @@ export default function ArrowNode({
       onMouseLeave={onMouseLeave}
     >
       {/* Wider invisible hit-area so thin arrows are easy to click/select */}
-      <Arrow
-        points={[0, 0, dx, dy]}
-        stroke="transparent"
-        strokeWidth={16}
-        hitStrokeWidth={16}
-        listening
-      />
+      {isLine ? (
+        <>
+          <Line
+            points={[0, 0, dx, dy]}
+            stroke="transparent"
+            strokeWidth={16}
+            hitStrokeWidth={16}
+            listening
+          />
 
-      <Arrow
-        points={[0, 0, dx, dy]}
-        stroke={isSelected ? "#4F46E5" : stroke}
-        strokeWidth={isSelected ? 3 : 2}
-        fill={isSelected ? "#4F46E5" : stroke}
-        pointerLength={10}
-        pointerWidth={8}
-        listening={false}
-        opacity={isLocked ? 0.82 : 1}
-      />
+          <Line
+            points={[0, 0, dx, dy]}
+            stroke={isSelected ? "#4F46E5" : stroke}
+            strokeWidth={isSelected ? 3 : 2}
+            lineCap="round"
+            lineJoin="round"
+            listening={false}
+            opacity={isLocked ? 0.82 : 1}
+          />
+        </>
+      ) : (
+        <>
+          <Arrow
+            points={[0, 0, dx, dy]}
+            stroke="transparent"
+            strokeWidth={16}
+            hitStrokeWidth={16}
+            listening
+          />
+
+          <Arrow
+            points={[0, 0, dx, dy]}
+            stroke={isSelected ? "#4F46E5" : stroke}
+            strokeWidth={isSelected ? 3 : 2}
+            fill={isSelected ? "#4F46E5" : stroke}
+            pointerLength={10}
+            pointerWidth={8}
+            listening={false}
+            opacity={isLocked ? 0.82 : 1}
+          />
+        </>
+      )}
 
       {data.label && (
         <Text

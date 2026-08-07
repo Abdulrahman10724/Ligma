@@ -13,6 +13,7 @@ import { fetchWorkspaceInvitations } from "../redux/invitationSlice";
 import InviteMemberDialog from "../components/invitations/InviteMemberDialog";
 import { PendingInvitationList, InvitationHistoryList } from "../components/invitations/InvitationList";
 import ThemeToggle from "../components/ui/ThemeToggle";
+import { toast } from "sonner";
 
 const schema = z.object({
   title: z.string().trim().min(2, "Workspace name must be at least 2 characters long"),
@@ -54,7 +55,24 @@ export default function SettingsPage() {
 
   const onSubmit = async (values) => {
     if (!id) return;
-    dispatch(updateWorkspace({ workspaceId: id, payload: values }));
+    const result = await dispatch(updateWorkspace({ workspaceId: id, payload: values }));
+
+    if (updateWorkspace.fulfilled.match(result)) {
+      toast.success("Workspace updated successfully.");
+      return;
+    }
+
+    const refresh = await dispatch(fetchWorkspaceById(id));
+    const refreshedWorkspace = refresh?.payload?.data?.workspace;
+    const normalizedTitle = values.title.trim();
+    const normalizedDescription = (values.description || "").trim();
+
+    if (fetchWorkspaceById.fulfilled.match(refresh) && refreshedWorkspace?.title === normalizedTitle && (refreshedWorkspace?.description || "") === normalizedDescription) {
+      toast.success("Workspace updated successfully.");
+      return;
+    }
+
+    toast.error(result.payload || refresh.payload?.message || "Unable to update workspace");
   };
 
   return (
@@ -69,7 +87,7 @@ export default function SettingsPage() {
           <h3 className="text-lg font-semibold">Workspace information</h3>
           <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Only the owner can update these details.</p>
 
-          {error ? <div className="mt-4 rounded-lg border border-[color:var(--danger)]/20 bg-[color:var(--danger)]/10 px-4 py-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
+          {error && !activeWorkspace ? <div className="mt-4 rounded-lg border border-[color:var(--danger)]/20 bg-[color:var(--danger)]/10 px-4 py-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 grid gap-4">
             <div>

@@ -29,7 +29,7 @@ export default function PresenceZoneEditor({ open, onOpenChange, initialValue, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-3xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-0 shadow-2xl">
+      <DialogContent className="flex max-h-[85vh] w-[min(100vw-1rem,34rem)] flex-col overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-0 shadow-2xl sm:w-[min(100vw-2rem,36rem)]">
         <DialogHeader className="border-b border-[color:var(--border)] px-6 py-5">
           <DialogTitle className="text-lg font-semibold text-[color:var(--text-primary)]">
             {initialValue?.id ? "Edit presence zone" : "Create presence zone"}
@@ -39,8 +39,8 @@ export default function PresenceZoneEditor({ open, onOpenChange, initialValue, o
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex max-h-[7 5vh] flex-col">
-          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 min-h-0 space-y-5 overflow-y-auto px-6 py-5">
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">
                 Name
@@ -75,7 +75,7 @@ export default function PresenceZoneEditor({ open, onOpenChange, initialValue, o
                     key={color}
                     type="button"
                     onClick={() => form.setValue("color", color, { shouldDirty: true, shouldValidate: true })}
-                    className={`h-9 w-9 rounded-2xl border transition-transform hover:-translate-y-0.5 ${currentColor === color ? "border-[color:var(--text-primary)] shadow-md" : "border-[color:var(--border)]"}`}
+                    className={`h-9 w-9 cursor-pointer rounded-2xl border transition-transform hover:-translate-y-0.5 ${currentColor === color ? "border-[color:var(--text-primary)] shadow-md" : "border-[color:var(--border)]"}`}
                     style={{ backgroundColor: color }}
                     aria-label={`Select ${color} color`}
                   />
@@ -108,7 +108,7 @@ export default function PresenceZoneEditor({ open, onOpenChange, initialValue, o
             </div>
           </div>
 
-          <DialogFooter className="gap-2 border-t border-[color:var(--border)] px-6 py-4">
+          <DialogFooter className="shrink-0 gap-2 border-t border-[color:var(--border)] px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-2xl">
               Cancel
             </Button>

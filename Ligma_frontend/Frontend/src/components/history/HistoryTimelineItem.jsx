@@ -1,7 +1,6 @@
 import React from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import HistoryEventIcon from "./HistoryEventIcon";
-import HistoryMetadata from "./HistoryMetadata";
 
 // ponytail: convert tech jargon code to clean human language text
 const formatNodeType = (type) => {
@@ -54,7 +53,7 @@ const parseEventText = (event) => {
     switch (event.eventType) {
       case "NODE_CREATED":
         return {
-          title: `${user} created a new ${nodeType}`,
+          title: `${user} created ${nodeType}`,
           desc: payload.snapshot?.data?.text
             ? `Added text: "${payload.snapshot.data.text}"`
             : "Placed a new item on the canvas",
@@ -94,7 +93,7 @@ const parseEventText = (event) => {
 
       case "NODE_MOVED":
         return {
-          title: `${user} moved a ${nodeType}`,
+          title: `${user} moved ${nodeType}`,
           desc: "Dragged item to a new position on the canvas",
         };
 
@@ -106,33 +105,33 @@ const parseEventText = (event) => {
         if (nextData.height !== undefined) dims.push(`Height ${prevData.height ?? "?"} → ${nextData.height}`);
         if (nextData.radius !== undefined) dims.push(`Radius ${prevData.radius ?? "?"} → ${nextData.radius}`);
         return {
-          title: `${user} resized a ${nodeType}`,
+          title: `${user} resized ${nodeType}`,
           desc: dims.length ? dims.join(" · ") : "Adjusted size boundary dimensions",
         };
       }
 
       case "NODE_DELETED":
         return {
-          title: `${user} deleted a ${nodeType}`,
+          title: `${user} deleted ${nodeType}`,
           desc: "Removed item from the active canvas",
         };
 
       case "NODE_LOCKED":
         return {
-          title: `${user} locked a ${nodeType}`,
+          title: `${user} locked ${nodeType}`,
           desc: "Protected this element from modifications",
         };
 
       case "NODE_UNLOCKED":
         return {
-          title: `${user} unlocked a ${nodeType}`,
+          title: `${user} unlocked ${nodeType}`,
           desc: "Restored editing access for all members",
         };
 
       case "NODE_PERMISSION_CHANGED": {
         const nextIds = Array.isArray(payload.nextAllowedUserIds) ? payload.nextAllowedUserIds : [];
         return {
-          title: `${user} changed permissions on a ${nodeType}`,
+          title: `${user} changed permissions on ${nodeType}`,
           desc: nextIds.length
             ? `Restricted editing to ${nextIds.length} selected member${nextIds.length === 1 ? "" : "s"} (Lead always included)`
             : "Opened editing to all contributors",
@@ -271,8 +270,6 @@ export default React.memo(function HistoryTimelineItem({ event }) {
           </div>
         </div>
 
-        {/* Collapsible Payload Metadata */}
-        <HistoryMetadata event={event} />
       </div>
     </div>
   );

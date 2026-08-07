@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Users } from "lucide-react";
+import { ChevronDown, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import PresenceZoneCard from "@/components/presence/PresenceZoneCard";
 import PresenceZoneEditor from "@/components/presence/PresenceZoneEditor";
 import {
@@ -60,12 +61,14 @@ export default function CanvasPresenceLayer({
   createZone,
   updateZone,
   removeZone,
+  onViewportChange,
 }) {
   const interactionRef = useRef(null);
   const [selectedZoneId, setSelectedZoneId] = useState(null);
   const [previewZones, setPreviewZones] = useState({});
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorDraft, setEditorDraft] = useState(DEFAULT_ZONE_DRAFT);
+  const animationFrameRef = useRef(null);
 
   // Refs so the mousemove/mouseup listeners (attached once) always read
   // the latest viewport scale and preview state without re-subscribing.
@@ -75,6 +78,12 @@ export default function CanvasPresenceLayer({
   useEffect(() => {
     viewportRef.current = viewport;
   }, [viewport]);
+
+  useEffect(() => () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     previewZonesRef.current = previewZones;
@@ -134,6 +143,55 @@ export default function CanvasPresenceLayer({
     setEditorDraft(zone);
     setIsEditorOpen(true);
   }, []);
+
+  const animateViewportTo = useCallback(
+    (nextViewport) => {
+      if (!onViewportChange) return;
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      const start = viewportRef.current;
+      const startedAt = performance.now();
+      const duration = 240;
+
+      const step = (now) => {
+        const progress = Math.min(1, (now - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+
+        onViewportChange({
+          x: start.x + (nextViewport.x - start.x) * eased,
+          y: start.y + (nextViewport.y - start.y) * eased,
+          scale: start.scale + (nextViewport.scale - start.scale) * eased,
+        });
+
+        if (progress < 1) {
+          animationFrameRef.current = requestAnimationFrame(step);
+        }
+      };
+
+      animationFrameRef.current = requestAnimationFrame(step);
+    },
+    [onViewportChange]
+  );
+
+  const focusZone = useCallback(
+    (zone) => {
+      if (!zone) {
+        setSelectedZoneId(null);
+        return;
+      }
+
+      setSelectedZoneId(zone.id);
+      animateViewportTo({
+        x: dimensions.width / 2 - (zone.x + zone.width / 2) * viewportRef.current.scale,
+        y: dimensions.height / 2 - (zone.y + zone.height / 2) * viewportRef.current.scale,
+        scale: viewportRef.current.scale,
+      });
+    },
+    [animateViewportTo, dimensions.height, dimensions.width]
+  );
 
   const persistZone = useCallback(
     async (zone) => {
@@ -236,7 +294,7 @@ export default function CanvasPresenceLayer({
             isSelected={selectedZoneId === zone.id}
             activeUsers={zonePresenceMap[zone.id] || []}
             canManage={canManage}
-            onSelect={setSelectedZoneId}
+            onSelect={focusZone}
             onDragStart={(event, currentZone) => {
               if (!canManage) return;
               event.preventDefault();
@@ -291,13 +349,42 @@ export default function CanvasPresenceLayer({
         </div>
 
         {canManage ? (
-          <Button
-            type="button"
-            onClick={openCreateZone}
-            className="pointer-events-auto rounded-2xl bg-gradient-to-r from-[color:var(--accent)] to-fuchsia-500 px-4 text-white shadow-lg hover:brightness-110"
-          >
-            <Plus className="mr-2 h-4 w-4" /> New zone
-          </Button>
+          <div className="pointer-events-auto flex flex-col gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-2xl border-[color:var(--border)] bg-[color:var(--bg-surface)]/92 px-4 text-[color:var(--text-primary)] shadow-lg backdrop-blur-xl hover:bg-[color:var(--bg-surface)]"
+                >
+                  <span className="max-w-40 truncate">{selectedZoneId ? (zoneList.find((zone) => zone.id === selectedZoneId)?.name || "All Zones") : "All Zones"}</span>
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={8} className="w-56 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-1.5 shadow-2xl">
+                <DropdownMenuItem onSelect={() => focusZone(null)} className="rounded-xl px-3 py-2 text-sm">
+                  All Zones
+                </DropdownMenuItem>
+                {zoneList.map((zone) => (
+                  <DropdownMenuItem
+                    key={zone.id}
+                    onSelect={() => focusZone(zone)}
+                    className="rounded-xl px-3 py-2 text-sm"
+                  >
+                    {zone.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              type="button"
+              onClick={openCreateZone}
+              className="rounded-2xl bg-gradient-to-r from-[color:var(--accent)] to-fuchsia-500 px-4 text-white shadow-lg hover:brightness-110"
+            >
+              <Plus className="mr-2 h-4 w-4" /> New zone
+            </Button>
+          </div>
         ) : null}
       </div>
 

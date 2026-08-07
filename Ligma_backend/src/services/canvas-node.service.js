@@ -31,6 +31,9 @@ const NODE_TEXT_KEYS = {
   rectangle: "label",
   circle: "label",
   arrow: "label",
+  diamond: "label",
+  triangle: "label",
+  line: "label",
 };
 
 /**

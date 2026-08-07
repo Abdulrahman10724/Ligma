@@ -17,7 +17,7 @@ export default function WorkspaceCard({ workspace, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="group text-left w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--primary)]/50 hover:shadow-[var(--shadow-md)] focus-visible:outline-2 focus-visible:outline-[color:var(--primary)]"
+      className="group cursor-pointer text-left w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--primary)]/50 hover:shadow-[var(--shadow-md)] focus-visible:outline-2 focus-visible:outline-[color:var(--primary)]"
     >
       {/* Top teal accent bar */}
       <div className="h-1 bg-[color:var(--primary)] opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -53,6 +53,9 @@ export default function WorkspaceCard({ workspace, onClick }) {
               </>
             )}
           </div>
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--foreground-muted)]">
+            {workspace.currentUserRole || "Viewer"}
+          </span>
           <span className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--primary)] group-hover:gap-1.5 transition-all duration-150">
             Open
             <ArrowRight className="w-3.5 h-3.5" />

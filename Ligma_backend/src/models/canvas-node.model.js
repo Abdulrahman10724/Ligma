@@ -6,7 +6,7 @@ const COLLECTION_NAME = "canvasNodes";
 
 const getCanvasNodesCollection = () => getCollection(COLLECTION_NAME);
 
-const VALID_NODE_TYPES = ["sticky", "text", "rectangle", "circle", "arrow"];
+const VALID_NODE_TYPES = ["sticky", "text", "rectangle", "circle", "arrow", "diamond", "triangle", "line"];
 // Empty array = unrestricted: every Contributor (+ Lead, always) can edit.
 const DEFAULT_ALLOWED_USER_IDS = [];
 

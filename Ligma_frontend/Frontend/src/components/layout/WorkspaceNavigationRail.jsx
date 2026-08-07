@@ -30,7 +30,7 @@ export default function WorkspaceNavigationRail({
           onClick={onToggle}
           title={isExpanded ? "Collapse navigation" : "Expand navigation"}
           aria-label={isExpanded ? "Collapse navigation" : "Expand navigation"}
-          className="h-[60px] w-full flex items-center justify-center border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] transition-colors duration-150 shrink-0 text-[color:var(--primary)]"
+          className="h-[60px] w-full flex cursor-pointer items-center justify-center border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] transition-colors duration-150 shrink-0 text-[color:var(--primary)]"
         >
           <BrandLockup size="sm" showMark={true} className="text-[color:var(--primary)]" />
         </button>

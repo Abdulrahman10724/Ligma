@@ -219,7 +219,7 @@ export default function MembersPage() {
                           {!isOwner && !isSelf && (
                             <button
                               onClick={() => setConfirmRemove({ userId: member.userId, name: member.name })}
-                              className="inline-flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)] hover:text-[color:var(--danger)] transition-colors"
+                              className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-[color:var(--text-secondary)] hover:text-[color:var(--danger)] transition-colors"
                             >
                               <UserMinus className="w-4 h-4" />
                               Remove

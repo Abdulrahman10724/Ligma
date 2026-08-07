@@ -1,4 +1,4 @@
-import { Lock, MousePointer2, Minus, Settings2, Square, Circle, StickyNote, Type, Unlock } from "lucide-react";
+import { ArrowRight, Circle, Diamond, Lock, MousePointer2, Minus, Settings2, Square, StickyNote, Triangle, Type, Unlock } from "lucide-react";
 
 const TOOLS = [
   { id: "select",    label: "Select",    icon: MousePointer2 },
@@ -6,7 +6,10 @@ const TOOLS = [
   { id: "text",      label: "Text",      icon: Type },
   { id: "rectangle", label: "Rect",      icon: Square },
   { id: "circle",    label: "Circle",    icon: Circle },
-  { id: "arrow",     label: "Arrow",     icon: Minus },
+  { id: "arrow",     label: "Arrow",     icon: ArrowRight },
+  { id: "diamond",   label: "Diamond",   icon: Diamond },
+  { id: "triangle",  label: "Triangle",  icon: Triangle },
+  { id: "line",      label: "Line",      icon: Minus },
 ];
 
 const COLORS = [
@@ -40,7 +43,7 @@ export default function CanvasToolbar({
               aria-label={label}
               aria-pressed={isActive}
               className={[
-                "relative flex flex-col items-center justify-center gap-0.5 w-11 h-11 rounded-lg text-[10px] font-medium transition-all duration-150",
+                "relative flex cursor-pointer flex-col items-center justify-center gap-0.5 w-11 h-11 rounded-lg text-[10px] font-medium transition-all duration-150",
                 isActive
                   ? "bg-[color:var(--primary-soft)] text-[color:var(--primary)]"
                   : "text-[color:var(--foreground-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)]",
@@ -65,7 +68,7 @@ export default function CanvasToolbar({
                 title={color}
                 aria-label={`Color ${color}`}
                 className={[
-                  "h-6 w-6 rounded-full transition-all duration-150",
+                  "h-6 w-6 cursor-pointer rounded-full transition-all duration-150",
                   isActive
                     ? "scale-125 ring-2 ring-[color:var(--foreground)] ring-offset-1 ring-offset-[color:var(--surface)]"
                     : "hover:scale-110 ring-1 ring-[color:var(--border)]",
@@ -83,7 +86,7 @@ export default function CanvasToolbar({
           <button
             onClick={onToggleLock}
             title={selectedNode.locked ? "Unlock node" : "Lock node"}
-            className="flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--foreground-secondary)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
+            className="flex cursor-pointer items-center gap-1 rounded-lg border border-[color:var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--foreground-secondary)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
           >
             {selectedNode.locked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
             {selectedNode.locked ? "Unlock" : "Lock"}
@@ -91,7 +94,7 @@ export default function CanvasToolbar({
           <button
             onClick={onOpenPermissions}
             title="Edit permissions"
-            className="flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--foreground-secondary)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
+            className="flex cursor-pointer items-center gap-1 rounded-lg border border-[color:var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--foreground-secondary)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--foreground)] transition-colors"
           >
             <Settings2 className="h-3.5 w-3.5" />
             Perms

@@ -49,7 +49,7 @@ function PresenceZoneCard({
   return (
 
     <div
-      className="absolute z-20 transition-all duration-200 ease-out"
+      className="absolute z-20 cursor-pointer transition-all duration-200 ease-out"
       style={{
         left: screenStyle.left,
         top: screenStyle.top,

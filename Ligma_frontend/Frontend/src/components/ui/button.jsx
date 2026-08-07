@@ -8,7 +8,7 @@ const buttonVariants = cva(
     "rounded-lg border border-transparent bg-clip-padding",
     "text-sm font-medium whitespace-nowrap",
     "transition-all duration-150",
-    "outline-none select-none",
+    "outline-none select-none cursor-pointer",
     "focus-visible:outline-2 focus-visible:outline-[color:var(--primary)] focus-visible:outline-offset-2",
     "active:not-aria-[haspopup]:translate-y-px",
     "disabled:pointer-events-none disabled:opacity-50",

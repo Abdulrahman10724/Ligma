@@ -49,7 +49,7 @@ function SelectionCheckbox({ selected, onToggle }) {
       type="button"
       title={selected ? "Deselect" : "Select task"}
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
-      className="flex-shrink-0 w-5 h-5 flex items-center justify-center ml-1 mt-0.5 group/check"
+      className="flex-shrink-0 w-5 h-5 flex cursor-pointer items-center justify-center ml-1 mt-0.5 group/check"
     >
       {selected ? (
         <svg className="w-4 h-4 text-[color:var(--accent)]" viewBox="0 0 16 16" fill="none">
@@ -148,7 +148,7 @@ export const TaskItem = memo(function TaskItem({
           <button
             type="button"
             className={cn(
-              "flex-shrink-0 w-4 h-4 flex items-center justify-center ml-1 mt-0.5 transition-transform duration-150",
+              "flex-shrink-0 w-4 h-4 flex cursor-pointer items-center justify-center ml-1 mt-0.5 transition-transform duration-150",
               isExpanded && "rotate-90",
               !hasChildren && "opacity-0 pointer-events-none"
             )}
@@ -188,7 +188,7 @@ export const TaskItem = memo(function TaskItem({
                         type="button"
                         title={title}
                         onClick={(e) => { e.stopPropagation(); action(); }}
-                        className="p-1 rounded transition-colors duration-100 text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-primary)]"
+                        className="p-1 rounded cursor-pointer transition-colors duration-100 text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-primary)]"
                       >
                         <Icon className="w-3 h-3" />
                       </button>

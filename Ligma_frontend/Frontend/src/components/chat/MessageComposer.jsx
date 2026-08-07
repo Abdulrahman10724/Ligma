@@ -17,7 +17,7 @@ function SuggestionList({ title, items, onSelect, emptyLabel }) {
               key={item.id || item.userId}
               type="button"
               onClick={() => onSelect(item)}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[color:var(--bg-primary)]"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[color:var(--bg-primary)]"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[color:var(--primary)] text-xs font-semibold text-[color:var(--primary-foreground)] shadow-sm">
                 {getInitials(item.name || item.email || item.data?.text || item.type || "?")}

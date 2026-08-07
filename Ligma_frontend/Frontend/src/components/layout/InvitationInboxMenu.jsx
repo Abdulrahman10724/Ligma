@@ -52,7 +52,7 @@ export default function InvitationInboxMenu() {
 
   return (
     <DropdownMenu onOpenChange={(open) => { if (open) dispatch(fetchMyPendingInvitations()); }}>
-      <DropdownMenuTrigger className="relative inline-flex items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-2.5 shadow-sm transition-colors hover:border-[color:var(--accent)] focus:outline-none">
+      <DropdownMenuTrigger className="relative inline-flex cursor-pointer items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-2.5 shadow-sm transition-colors hover:border-[color:var(--accent)] focus:outline-none">
         <Bell className="h-4 w-4 text-[color:var(--text-primary)]" />
         {inbox.length > 0 ? (
           <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[color:var(--danger)] px-1.5 py-0.5 text-[10px] font-semibold text-white">

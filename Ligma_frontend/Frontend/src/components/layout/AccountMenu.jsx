@@ -42,7 +42,7 @@ export default function AccountMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1.5 text-left transition-colors hover:border-[color:var(--primary)]/50 focus:outline-none">
+      <DropdownMenuTrigger className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1.5 text-left transition-colors hover:border-[color:var(--primary)]/50 focus:outline-none">
         <Avatar className="size-7">
           <AvatarFallback className="bg-[color:var(--primary)] text-[color:var(--primary-foreground)] text-xs font-semibold">
             {initials}

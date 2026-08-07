@@ -14,9 +14,9 @@ const createNodeSchema = z.object({
     workspaceId: workspaceIdParam,
   }),
   body: z.object({
-    type: z.enum(["sticky", "text", "rectangle", "circle", "arrow"], {
+    type: z.enum(["sticky", "text", "rectangle", "circle", "arrow", "diamond", "triangle", "line"], {
       required_error: "Node type is required",
-      invalid_type_error: "Node type must be one of: sticky, text, rectangle, circle, arrow",
+      invalid_type_error: "Node type must be one of: sticky, text, rectangle, circle, arrow, diamond, triangle, line",
     }),
     x: z.number({ required_error: "x position is required" }),
     y: z.number({ required_error: "y position is required" }),
