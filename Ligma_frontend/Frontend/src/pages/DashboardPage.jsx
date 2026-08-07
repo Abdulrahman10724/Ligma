@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { LayoutGrid, Plus, Loader2, FolderOpen } from "lucide-react";
-
+import LogoutButton from "../components/layout/LogoutButton";
 import { Button } from "../components/ui/button";
 import WorkspaceCard from "../components/workspace/WorkspaceCard";
 import WorkspaceEmptyState from "../components/workspace/WorkspaceEmptyState";
@@ -69,10 +69,13 @@ export default function DashboardPage() {
               Create and manage your collaborative spaces.
             </p>
           </div>
-          <Button onClick={() => setCreateOpen(true)} className="self-start sm:self-auto">
-            <Plus className="w-4 h-4 mr-1.5" />
-            New workspace
-          </Button>
+         <div className="flex items-center gap-2 self-start sm:self-auto">
+            <LogoutButton />
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              New workspace
+            </Button>
+          </div>
         </div>
 
         {/* ── Error ─────────────────────────────────────────────────────── */}
