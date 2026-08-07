@@ -58,6 +58,9 @@ const DEFAULT_NODE_DATA = {
   rectangle: { width: 160, height: 100, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
   circle: { radius: 60, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
   arrow: { dx: 150, dy: 0, color: "#0F766E", label: "" },
+  diamond: { width: 160, height: 160, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
+  triangle: { width: 160, height: 160, fill: "rgba(0,0,0,0)", stroke: "#000000", label: "" },
+  line: { dx: 150, dy: 0, color: "#0F766E", label: "" },
 };
 
 const MIN_DIMENSIONS = {
@@ -65,9 +68,11 @@ const MIN_DIMENSIONS = {
   text: { width: 100, height: 32 },
   rectangle: { width: 40, height: 32 },
   circle: { width: 40, height: 40 },
+  diamond: { width: 40, height: 40 },
+  triangle: { width: 40, height: 40 },
 };
 
-const RESIZABLE_NODE_TYPES = new Set(["sticky", "text", "rectangle", "circle"]);
+const RESIZABLE_NODE_TYPES = new Set(["sticky", "text", "rectangle", "circle", "diamond", "triangle"]);
 
 const COLOR_FIELDS = {
   sticky: ["fill", "textColor"],
@@ -75,6 +80,9 @@ const COLOR_FIELDS = {
   rectangle: ["fill", "stroke"],
   circle: ["fill", "stroke"],
   arrow: ["color"],
+  diamond: ["fill", "stroke"],
+  triangle: ["fill", "stroke"],
+  line: ["color"],
 };
 
 const NODE_TEXT_KEYS = {
@@ -83,6 +91,9 @@ const NODE_TEXT_KEYS = {
   rectangle: "label",
   circle: "label",
   arrow: "label",
+  diamond: "label",
+  triangle: "label",
+  line: "label",
 };
 
 const SNAP_ANGLE_THRESHOLD = 6; // degrees
@@ -287,6 +298,17 @@ useEffect(() => {
       return { x: node.x - radius, y: node.y - radius, width: radius * 2, height: radius * 2 };
     }
 
+    if (node.type === "line") {
+      const dx = data.dx ?? DEFAULT_NODE_DATA.line.dx;
+      const dy = data.dy ?? DEFAULT_NODE_DATA.line.dy;
+      return {
+        x: node.x + Math.min(0, dx),
+        y: node.y + Math.min(0, dy),
+        width: Math.max(1, Math.abs(dx)),
+        height: Math.max(1, Math.abs(dy)),
+      };
+    }
+
     if (node.type === "text") {
       return {
         x: node.x,
@@ -305,12 +327,12 @@ useEffect(() => {
       };
     }
 
-    if (node.type === "rectangle") {
+    if (node.type === "rectangle" || node.type === "diamond" || node.type === "triangle") {
       return {
         x: node.x,
         y: node.y,
-        width: data.width || DEFAULT_NODE_DATA.rectangle.width,
-        height: data.height || DEFAULT_NODE_DATA.rectangle.height,
+        width: data.width || DEFAULT_NODE_DATA[node.type]?.width || DEFAULT_NODE_DATA.rectangle.width,
+        height: data.height || DEFAULT_NODE_DATA[node.type]?.height || DEFAULT_NODE_DATA.rectangle.height,
       };
     }
 
@@ -663,6 +685,19 @@ const buildPresetData = useCallback(
         };
       }
 
+      if (tool === "diamond" || tool === "triangle") {
+        const sizeValue = Math.max(width, height) || DEFAULT_NODE_DATA[tool].width;
+        return {
+          ...DEFAULT_NODE_DATA[tool],
+          fill: toolFillColor === "transparent" ? "rgba(0,0,0,0)" : toolFillColor,
+          stroke: toolStrokeColor,
+          strokeWidth: toolStrokeWidth,
+          opacity: toolOpacity,
+          width: sizeValue,
+          height: sizeValue,
+        };
+      }
+
       if (tool === "circle") {
         const radius = Math.max(24, Math.round(Math.max(width, height) / 2) || DEFAULT_NODE_DATA.circle.radius);
         return {
@@ -682,6 +717,15 @@ const buildPresetData = useCallback(
         };
       }
 
+      if (tool === "line") {
+        return {
+          ...DEFAULT_NODE_DATA.line,
+          color: toolStrokeColor,
+          dx: size.dx ?? DEFAULT_NODE_DATA.line.dx,
+          dy: size.dy ?? DEFAULT_NODE_DATA.line.dy,
+        };
+      }
+
       return DEFAULT_NODE_DATA[tool] || {};
     },
     [toolFillColor, toolStrokeColor, toolStrokeWidth, toolEdges, toolOpacity]
@@ -697,7 +741,25 @@ const buildPresetData = useCallback(
       const x = Math.min(draft.start.x, point.x);
       const y = Math.min(draft.start.y, point.y);
 
-      const size = draft.tool === "circle"
+      if (draft.tool === "line") {
+        const payload = {
+          type: "line",
+          x: Math.round(draft.start.x),
+          y: Math.round(draft.start.y),
+          data: buildPresetData("line", {
+            dx: Math.round(point.x - draft.start.x),
+            dy: Math.round(point.y - draft.start.y),
+          }),
+        };
+
+        const result = await dispatch(createCanvasNode({ workspaceId, payload }));
+        if (createCanvasNode.rejected.match(result)) {
+          toast.error(result.payload || "Failed to create node");
+        }
+        return;
+      }
+
+      const size = draft.tool === "circle" || draft.tool === "diamond" || draft.tool === "triangle"
         ? { width: Math.max(width, height), height: Math.max(width, height) }
         : { width, height };
 
@@ -1078,6 +1140,12 @@ const buildPresetData = useCallback(
       if (node.type === "circle") {
         const nextRadius = Math.max(min.width / 2, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
         nextData.radius = nextRadius;
+      } else if (node.type === "diamond" || node.type === "triangle") {
+        const baseWidth = data.width || DEFAULT_NODE_DATA[node.type]?.width || 160;
+        const baseHeight = data.height || DEFAULT_NODE_DATA[node.type]?.height || 160;
+        const nextSize = Math.max(min.width, Math.max(baseWidth * scaleX, baseHeight * scaleY));
+        nextData.width = Math.round(nextSize);
+        nextData.height = Math.round(nextSize);
       } else {
         const baseWidth = data.width || DEFAULT_NODE_DATA[node.type]?.width || 160;
         const baseHeight = data.height || DEFAULT_NODE_DATA[node.type]?.height || 100;
@@ -1136,6 +1204,12 @@ const buildPresetData = useCallback(
       if (node.type === "circle") {
         const nextRadius = Math.max(min.width / 2, Math.round((data.radius || DEFAULT_NODE_DATA.circle.radius) * Math.max(scaleX, scaleY)));
         nextData.radius = nextRadius;
+      } else if (node.type === "diamond" || node.type === "triangle") {
+        const baseWidth = data.width || DEFAULT_NODE_DATA[node.type]?.width || 160;
+        const baseHeight = data.height || DEFAULT_NODE_DATA[node.type]?.height || 160;
+        const nextSize = Math.max(min.width, Math.max(baseWidth * scaleX, baseHeight * scaleY));
+        nextData.width = Math.round(nextSize);
+        nextData.height = Math.round(nextSize);
       } else {
         const baseWidth = data.width || DEFAULT_NODE_DATA[node.type]?.width || 160;
         const baseHeight = data.height || DEFAULT_NODE_DATA[node.type]?.height || 100;
@@ -1485,8 +1559,13 @@ const handleSavePermissions = useCallback(async () => {
       case "sticky": return <StickyNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
       case "text": return <TextNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
       case "rectangle":
-      case "circle": return <ShapeNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
+      case "circle":
+      case "diamond":
+      case "triangle": return <ShapeNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
       case "arrow": return <ArrowNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} canEdit={canEditCanvas}
+        onEndpointDragMove={handleArrowEndpointDragMove}
+        onEndpointDragEnd={handleArrowEndpointDragEnd} />;
+      case "line": return <ArrowNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} canEdit={canEditCanvas}
         onEndpointDragMove={handleArrowEndpointDragMove}
         onEndpointDragEnd={handleArrowEndpointDragEnd} />;
       default: return null;
@@ -1636,6 +1715,8 @@ const handleSavePermissions = useCallback(async () => {
             const draftData = buildPresetData(creationDraft.tool, { width, height });
             const draftFill = draftData.fill || draftData.color || "#E5E7EB";
             const draftStroke = draftData.stroke || draftData.color || "#A1A1AA";
+            const lineDx = creationDraft.current.x - creationDraft.start.x;
+            const lineDy = creationDraft.current.y - creationDraft.start.y;
 
             return (
               <>
@@ -1645,6 +1726,22 @@ const handleSavePermissions = useCallback(async () => {
                 {creationDraft.tool === "rectangle" && (
                   <Rect x={left} y={top} width={width} height={height} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.7} listening={false} />
                 )}
+                {(creationDraft.tool === "diamond" || creationDraft.tool === "triangle") && (
+                  <Line
+                    x={left}
+                    y={top}
+                    points={creationDraft.tool === "diamond"
+                      ? [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2]
+                      : [width / 2, 0, width, height, 0, height]}
+                    closed
+                    fill={draftFill}
+                    stroke={draftStroke}
+                    strokeWidth={1.5 / viewport.scale}
+                    dash={[6, 4]}
+                    opacity={0.7}
+                    listening={false}
+                  />
+                )}
                 {creationDraft.tool === "text" && (
                   <>
                     <Rect x={left} y={top} width={Math.max(width, 180)} height={Math.max(height, 48)} fill="transparent" stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.7} listening={false} />
@@ -1653,6 +1750,20 @@ const handleSavePermissions = useCallback(async () => {
                 )}
                 {creationDraft.tool === "circle" && (
                   <Circle x={left + width / 2} y={top + height / 2} radius={Math.max(width, height) / 2} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} opacity={0.7} listening={false} />
+                )}
+                {creationDraft.tool === "line" && (
+                  <Line
+                    x={creationDraft.start.x}
+                    y={creationDraft.start.y}
+                    points={[0, 0, lineDx, lineDy]}
+                    stroke={draftStroke}
+                    strokeWidth={1.5 / viewport.scale}
+                    dash={[6, 4]}
+                    lineCap="round"
+                    lineJoin="round"
+                    opacity={0.7}
+                    listening={false}
+                  />
                 )}
               </>
             );
@@ -1697,6 +1808,8 @@ const handleSavePermissions = useCallback(async () => {
             const draftData = buildPresetData(remoteDraft.tool, { width, height });
             const draftFill = draftData.fill || draftData.color || "#FED7AA";
             const draftStroke = "#F97316";
+            const lineDx = current.x - remoteDraft.start.x;
+            const lineDy = current.y - remoteDraft.start.y;
 
             return (
               <>
@@ -1706,11 +1819,41 @@ const handleSavePermissions = useCallback(async () => {
                 {remoteDraft.tool === "rectangle" && (
                   <Rect x={left} y={top} width={width} height={height} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.6} listening={false} />
                 )}
+                {(remoteDraft.tool === "diamond" || remoteDraft.tool === "triangle") && (
+                  <Line
+                    x={left}
+                    y={top}
+                    points={remoteDraft.tool === "diamond"
+                      ? [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2]
+                      : [width / 2, 0, width, height, 0, height]}
+                    closed
+                    fill={draftFill}
+                    stroke={draftStroke}
+                    strokeWidth={1.5 / viewport.scale}
+                    dash={[6, 4]}
+                    opacity={0.6}
+                    listening={false}
+                  />
+                )}
                 {remoteDraft.tool === "text" && (
                   <Rect x={left} y={top} width={Math.max(width, 180)} height={Math.max(height, 48)} fill="transparent" stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.6} listening={false} />
                 )}
                 {remoteDraft.tool === "circle" && (
                   <Circle x={left + width / 2} y={top + height / 2} radius={Math.max(width, height) / 2} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} opacity={0.6} listening={false} />
+                )}
+                {remoteDraft.tool === "line" && (
+                  <Line
+                    x={remoteDraft.start.x}
+                    y={remoteDraft.start.y}
+                    points={[0, 0, lineDx, lineDy]}
+                    stroke={draftStroke}
+                    strokeWidth={1.5 / viewport.scale}
+                    dash={[6, 4]}
+                    lineCap="round"
+                    lineJoin="round"
+                    opacity={0.6}
+                    listening={false}
+                  />
                 )}
               </>
             );
@@ -1720,9 +1863,9 @@ const handleSavePermissions = useCallback(async () => {
          <Transformer
             ref={transformerRef}
             rotateEnabled={false}
-            keepRatio={selectedNode?.type === "circle" || isShiftPressed}
+            keepRatio={selectedNode?.type === "circle" || selectedNode?.type === "diamond" || selectedNode?.type === "triangle" || isShiftPressed}
             enabledAnchors={
-              selectedNode?.type === "circle" || isShiftPressed
+              selectedNode?.type === "circle" || selectedNode?.type === "diamond" || selectedNode?.type === "triangle" || isShiftPressed
                 ? ["top-left", "top-right", "bottom-left", "bottom-right"]
                 : [
                   "top-left",
@@ -1781,6 +1924,7 @@ const handleSavePermissions = useCallback(async () => {
       <CanvasPresenceLayer
         viewport={viewport}
         dimensions={dimensions}
+        onViewportChange={setViewport}
         members={members}
         presenceUsers={presenceUsers}
         remoteCursors={remoteCursors}
@@ -1895,50 +2039,68 @@ const handleSavePermissions = useCallback(async () => {
    {editingNodeId && selectedNodeBounds && (() => {
         const editingNode = nodesMap[editingNodeId];
         const isCircleEdit = editingNode?.type === "circle";
-        const boxWidth = Math.max(selectedNodeBounds.width * viewport.scale, 220);
-        // Inscribed-square inset keeps typed text inside the circular boundary.
-        const circleInset = isCircleEdit ? Math.round(boxWidth * 0.146) : 0;
+        const isPolygonEdit = editingNode?.type === "diamond" || editingNode?.type === "triangle";
+        const boxWidth = Math.max(selectedNodeBounds.width * viewport.scale, editingNode?.type === "line" ? 160 : 0);
+        const boxHeight = Math.max(selectedNodeBounds.height * viewport.scale, editingNode?.type === "line" ? 72 : 0);
+        const circleInset = isCircleEdit ? Math.max(14, Math.round(Math.min(boxWidth, boxHeight) * 0.12)) : 0;
+        const editingPadding = editingNode?.type === "sticky" || editingNode?.type === "rectangle"
+          ? 12
+          : isCircleEdit || isPolygonEdit
+            ? 16
+            : 12;
 
         return (
-          <div
-            className="absolute z-30 border border-[color:var(--accent)] shadow-2xl bg-transparent overflow-hidden"
+          <textarea
+            autoFocus
+            value={editingValue}
+            onChange={(event) => {
+              const value = event.target.value;
+              setEditingValue(value);
+
+              if (!textEmitTimerRef.current) {
+                emit("canvas:text", { workspaceId, nodeId: editingNodeId, value });
+                textEmitTimerRef.current = setTimeout(() => {
+                  textEmitTimerRef.current = null;
+                  if (pendingTextValueRef.current !== null) {
+                    const pending = pendingTextValueRef.current;
+                    pendingTextValueRef.current = null;
+                    emit("canvas:text", { workspaceId, nodeId: editingNodeId, value: pending });
+                  }
+                }, 120);
+              } else {
+                pendingTextValueRef.current = value;
+              }
+            }}
+            onBlur={handleEditorSave}
+            onKeyDown={handleEditorKeyDown}
+            className="absolute z-30 block resize-none bg-transparent outline-none border-0 m-0 p-0 shadow-2xl"
             style={{
               left: `${selectedNodeBounds.x * viewport.scale + viewport.x}px`,
               top: `${selectedNodeBounds.y * viewport.scale + viewport.y}px`,
               width: `${boxWidth}px`,
-              minHeight: `${Math.max(selectedNodeBounds.height * viewport.scale, 64)}px`,
-              borderRadius: isCircleEdit ? "50%" : "0.75rem",
-              padding: isCircleEdit ? `${circleInset}px` : 0,
+              height: `${Math.max(boxHeight, 64)}px`,
+              color: editingNode?.type === "sticky" ? editingNode?.data?.textColor || "#18181B" : "#000000",
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: editingNode?.type === "text" ? `${editingNode?.data?.fontSize || 16}px` : "13px",
+              lineHeight: 1.4,
+              textAlign: editingNode?.type === "sticky" || editingNode?.type === "rectangle" ? "left" : "center",
+              overflow: "hidden",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              boxSizing: "border-box",
+              padding: editingPadding,
+              borderRadius: isCircleEdit ? "50%" : isPolygonEdit ? 0 : "0.75rem",
+              clipPath: editingNode?.type === "diamond"
+                ? "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)"
+                : editingNode?.type === "triangle"
+                  ? "polygon(50% 0%, 100% 100%, 0% 100%)"
+                  : undefined,
+              background: "transparent",
+              caretColor: editingNode?.type === "sticky" ? editingNode?.data?.textColor || "#18181B" : "#000000",
+              opacity: editingNode?.locked ? 0.82 : 1,
             }}
-          >
-            <textarea
-              autoFocus
-              value={editingValue}
-              onChange={(event) => {
-                const value = event.target.value;
-                setEditingValue(value);
-
-                if (!textEmitTimerRef.current) {
-                  emit("canvas:text", { workspaceId, nodeId: editingNodeId, value });
-                  textEmitTimerRef.current = setTimeout(() => {
-                    textEmitTimerRef.current = null;
-                    if (pendingTextValueRef.current !== null) {
-                      const pending = pendingTextValueRef.current;
-                      pendingTextValueRef.current = null;
-                      emit("canvas:text", { workspaceId, nodeId: editingNodeId, value: pending });
-                    }
-                  }, 120);
-                } else {
-                  pendingTextValueRef.current = value;
-                }
-              }}
-              onBlur={handleEditorSave}
-              onKeyDown={handleEditorKeyDown}
-              className="h-full w-full resize-none bg-transparent p-3 text-sm outline-none text-center"
-              style={{ color: "#000000", borderRadius: isCircleEdit ? "50%" : "0.75rem" }}
-              placeholder="Enter text"
-            />
-          </div>
+            placeholder="Enter text"
+          />
         );
       })()}
 
