@@ -998,6 +998,8 @@ const buildPresetData = useCallback(
       const pending = dragPendingRef.current[nodeId];
       if (pending) {
         dragPendingRef.current[nodeId] = null;
+        dispatch(updateNodePositionLocally({ nodeId, x: pending.x, y: pending.y }));
+        
         sendDragUpdate(nodeId, pending.x, pending.y, pending.parentNodeId);
       }
     },
