@@ -350,16 +350,18 @@ function CanvasPresenceLayer({
 
         {canManage ? (
           <div className="pointer-events-auto flex flex-col gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-2xl border-[color:var(--border)] bg-[color:var(--bg-surface)]/92 px-4 text-[color:var(--text-primary)] shadow-lg backdrop-blur-xl hover:bg-[color:var(--bg-surface)]"
-                >
-                  <span className="max-w-40 truncate">{selectedZoneId ? (zoneList.find((zone) => zone.id === selectedZoneId)?.name || "All Zones") : "All Zones"}</span>
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
+          <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-2xl border-[color:var(--border)] bg-[color:var(--bg-surface)]/92 px-4 text-[color:var(--text-primary)] shadow-lg backdrop-blur-xl hover:bg-[color:var(--bg-surface)]"
+                  />
+                }
+              >
+                <span className="max-w-40 truncate">{selectedZoneId ? (zoneList.find((zone) => zone.id === selectedZoneId)?.name || "All Zones") : "All Zones"}</span>
+                <ChevronDown className="ml-2 h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" sideOffset={8} className="w-56 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-1.5 shadow-2xl">
                 <DropdownMenuItem onSelect={() => focusZone(null)} className="rounded-xl px-3 py-2 text-sm">

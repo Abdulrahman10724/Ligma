@@ -1,10 +1,11 @@
+import React from "react";
 import { useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { MoreHorizontal } from "lucide-react";
 
 const HEX_REGEX = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/;
 
-export default function ColorSwatchPicker({ label, value, onChange, colors, allowTransparent = false }) {
+function ColorSwatchPicker({ label, value, onChange, colors, allowTransparent = false }) {
   const [showMore, setShowMore] = useState(false);
   const [hexInput, setHexInput] = useState(value && value !== "transparent" ? value : "");
   const [error, setError] = useState("");
@@ -96,3 +97,4 @@ export default function ColorSwatchPicker({ label, value, onChange, colors, allo
     </div>
   );
 }
+export default React.memo(ColorSwatchPicker);

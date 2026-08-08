@@ -1,3 +1,4 @@
+import React from "react";
 import { ArrowRight, Circle, Diamond, Lock, MousePointer2, Minus, Settings2, Square, StickyNote, Triangle, Type, Unlock } from "lucide-react";
 
 const TOOLS = [
@@ -16,7 +17,7 @@ const COLORS = [
   "#FDE68A", "#BFDBFE", "#FDBA74", "#BBF7D0", "#F9A8D4", "#D8B4FE",
 ];
 
-export default function CanvasToolbar({
+ function CanvasToolbar({
   activeTool,
   onToolChange,
   activeColor,
@@ -104,3 +105,4 @@ export default function CanvasToolbar({
     </div>
   );
 }
+export default React.memo(CanvasToolbar);

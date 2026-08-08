@@ -184,6 +184,15 @@ const [savingPermissions, setSavingPermissions] = useState(false);
   const draggingNodeRef = useRef(false);
   const editingNodeIdRef = useRef(null);
   const localCursorRafRef = useRef(null);
+  const draftRectRef = useRef(null);       // sticky / rectangle
+  const draftPolygonRef = useRef(null);    // diamond / triangle
+  const draftCircleRef = useRef(null);
+  const draftTextRectRef = useRef(null);
+  const draftTextLabelRef = useRef(null);
+  const draftLineRef = useRef(null);       // "line" tool
+  const arrowShapeRef = useRef(null);
+  const creationDraftRef = useRef(null);   // mutable {tool, start, current}
+  const arrowDraftRef = useRef(null);      // mutable {start, end}
   // const resizeEmitRef = useRef(0);
   const cursorEmitRef = useRef(0);
   const textEmitTimerRef = useRef(null);
@@ -841,11 +850,13 @@ const buildPresetData = useCallback(
       const point = getCanvasPoint();
       if (!point) return;
 
-      if (activeTool === "arrow") {
+     if (activeTool === "arrow") {
         setSelectedNodeIds([]);
         setEditingNodeId(null);
         setCreationDraft(null);
+        creationDraftRef.current = null;
         setArrowDraft({ start: point, end: point });
+        arrowDraftRef.current = { start: point, end: point };
         return;
       }
 
@@ -858,8 +869,10 @@ const buildPresetData = useCallback(
       setSelectedNodeIds([]);
       setEditingNodeId(null);
       setArrowDraft(null);
+      arrowDraftRef.current = null;
       emit("canvas:draft", { workspaceId, draft: null });
       setCreationDraft({ tool: activeTool, start: point, current: point });
+      creationDraftRef.current = { tool: activeTool, start: point, current: point };
     },
     [activeTool, canEditCanvas, getCanvasPoint]
   );
@@ -870,24 +883,25 @@ const buildPresetData = useCallback(
     if (!point) return;
 
     emitCursorPosition(point);
-    emitCursorPosition(point);
-  if (!localCursorRafRef.current) {
-    localCursorRafRef.current = requestAnimationFrame(() => {
-      localCursorRafRef.current = null;
-      setLocalCursor(point);
-    });
-  }
+
+    if (!localCursorRafRef.current) {
+      localCursorRafRef.current = requestAnimationFrame(() => {
+        localCursorRafRef.current = null;
+        setLocalCursor(point);
+      });
+    }
 
     if (arrowDraft && activeTool === "arrow") {
       const rawDx = point.x - arrowDraft.start.x;
       const rawDy = point.y - arrowDraft.start.y;
       const { dx: snappedDx, dy: snappedDy } = snapArrowVector(rawDx, rawDy, isShiftPressed);
 
-      setArrowDraft((current) =>
-        current
-          ? { ...current, end: { x: arrowDraft.start.x + snappedDx, y: arrowDraft.start.y + snappedDy } }
-          : current
-      );
+      arrowDraftRef.current = {
+        start: arrowDraft.start,
+        end: { x: arrowDraft.start.x + snappedDx, y: arrowDraft.start.y + snappedDy },
+      };
+      arrowShapeRef.current?.setAttrs({ points: [0, 0, snappedDx, snappedDy] });
+      stageRef.current?.batchDraw();
 
       if (!draftEmitTimerRef.current) {
         draftEmitTimerRef.current = setTimeout(() => {
@@ -898,7 +912,34 @@ const buildPresetData = useCallback(
     }
 
     if (creationDraft) {
-      setCreationDraft((current) => (current ? { ...current, current: point } : current));
+      creationDraftRef.current = { ...creationDraft, current: point };
+
+      const { tool, start } = creationDraft;
+      const width = Math.max(24, Math.abs(point.x - start.x));
+      const height = Math.max(24, Math.abs(point.y - start.y));
+      const left = Math.min(start.x, point.x);
+      const top = Math.min(start.y, point.y);
+
+      if (tool === "sticky" || tool === "rectangle") {
+        draftRectRef.current?.setAttrs({ x: left, y: top, width, height });
+      } else if (tool === "diamond" || tool === "triangle") {
+        const points = tool === "diamond"
+          ? [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2]
+          : [width / 2, 0, width, height, 0, height];
+        draftPolygonRef.current?.setAttrs({ x: left, y: top, points });
+      } else if (tool === "text") {
+        const boxW = Math.max(width, 180);
+        const boxH = Math.max(height, 48);
+        draftTextRectRef.current?.setAttrs({ x: left, y: top, width: boxW, height: boxH });
+        draftTextLabelRef.current?.setAttrs({ x: left + 12, y: top + 10, width: boxW - 24, height: boxH - 20 });
+      } else if (tool === "circle") {
+        const radius = Math.max(width, height) / 2;
+        draftCircleRef.current?.setAttrs({ x: left + width / 2, y: top + height / 2, radius });
+      } else if (tool === "line") {
+        draftLineRef.current?.setAttrs({ points: [0, 0, point.x - start.x, point.y - start.y] });
+      }
+
+      stageRef.current?.batchDraw();
 
       if (!draftEmitTimerRef.current) {
         draftEmitTimerRef.current = setTimeout(() => {
@@ -908,16 +949,19 @@ const buildPresetData = useCallback(
       }
     }
   }, [activeTool, arrowDraft, creationDraft, emitCursorPosition, getCanvasPoint, isShiftPressed, emit, workspaceId]);
+
   const handleStagePointerUp = useCallback(async () => {
     if (!canEditCanvas) {
       return;
     }
 
     if (arrowDraft && activeTool === "arrow") {
-      const dx = arrowDraft.end.x - arrowDraft.start.x;
-      const dy = arrowDraft.end.y - arrowDraft.start.y;
+      const finalEnd = arrowDraftRef.current?.end || arrowDraft.end;
+      const dx = finalEnd.x - arrowDraft.start.x;
+      const dy = finalEnd.y - arrowDraft.start.y;
       if (Math.abs(dx) + Math.abs(dy) < 6) {
         setArrowDraft(null);
+        arrowDraftRef.current = null;
         return;
       }
 
@@ -938,19 +982,20 @@ const buildPresetData = useCallback(
       }
 
       setArrowDraft(null);
+      arrowDraftRef.current = null;
       setActiveTool("select");
       return;
     }
 
     if (creationDraft) {
-      const draft = creationDraft;
+      const draft = creationDraftRef.current || creationDraft;
       setCreationDraft(null);
+      creationDraftRef.current = null;
       emit("canvas:draft", { workspaceId, draft: null });
       await commitCreationDraft(draft);
       setActiveTool("select");
     }
   }, [activeTool, arrowDraft, canEditCanvas, commitCreationDraft, creationDraft, dispatch, workspaceId, emit]);
-
   // Stage click → place node (if tool !== select)
   const handleStageClick = useCallback(
     (e) => {
@@ -1582,9 +1627,10 @@ const handleNodeMouseLeave = useCallback((nodeId) => {
       default: return null;
     }
   };
-  useEffect(() => () => {
+ useEffect(() => () => {
   if (localCursorRafRef.current) cancelAnimationFrame(localCursorRafRef.current);
-}, []);
+  
+}, []); 
 
   useEffect(() => {
     const targetNodeId = searchParams.get("node");
@@ -1720,33 +1766,26 @@ const handleNodeMouseLeave = useCallback((nodeId) => {
             .sort((a, b) => (a.parentNodeId ? 1 : 0) - (b.parentNodeId ? 1 : 0))
             .map(renderNode)}
 
-          {creationDraft && activeTool !== "arrow" && (() => {
-            const current = creationDraft.current || creationDraft.start;
-            const left = Math.min(creationDraft.start.x, current.x);
-            const top = Math.min(creationDraft.start.y, current.y);
-            const width = Math.max(24, Math.abs(current.x - creationDraft.start.x));
-            const height = Math.max(24, Math.abs(current.y - creationDraft.start.y));
-            const draftData = buildPresetData(creationDraft.tool, { width, height });
+         {creationDraft && activeTool !== "arrow" && (() => {
+            const { tool, start } = creationDraft;
+            const draftData = buildPresetData(tool, { width: 24, height: 24 });
             const draftFill = draftData.fill || draftData.color || "#E5E7EB";
             const draftStroke = draftData.stroke || draftData.color || "#A1A1AA";
-            const lineDx = creationDraft.current.x - creationDraft.start.x;
-            const lineDy = creationDraft.current.y - creationDraft.start.y;
 
             return (
               <>
-                {creationDraft.tool === "sticky" && (
-                  <Rect x={left} y={top} width={width} height={height} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={10} opacity={0.7} listening={false} />
+                {tool === "sticky" && (
+                  <Rect ref={draftRectRef} x={start.x} y={start.y} width={24} height={24} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={10} opacity={0.7} listening={false} />
                 )}
-                {creationDraft.tool === "rectangle" && (
-                  <Rect x={left} y={top} width={width} height={height} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.7} listening={false} />
+                {tool === "rectangle" && (
+                  <Rect ref={draftRectRef} x={start.x} y={start.y} width={24} height={24} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.7} listening={false} />
                 )}
-                {(creationDraft.tool === "diamond" || creationDraft.tool === "triangle") && (
+                {(tool === "diamond" || tool === "triangle") && (
                   <Line
-                    x={left}
-                    y={top}
-                    points={creationDraft.tool === "diamond"
-                      ? [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2]
-                      : [width / 2, 0, width, height, 0, height]}
+                    ref={draftPolygonRef}
+                    x={start.x}
+                    y={start.y}
+                    points={tool === "diamond" ? [12, 0, 24, 12, 12, 24, 0, 12] : [12, 0, 24, 24, 0, 24]}
                     closed
                     fill={draftFill}
                     stroke={draftStroke}
@@ -1756,20 +1795,21 @@ const handleNodeMouseLeave = useCallback((nodeId) => {
                     listening={false}
                   />
                 )}
-                {creationDraft.tool === "text" && (
+                {tool === "text" && (
                   <>
-                    <Rect x={left} y={top} width={Math.max(width, 180)} height={Math.max(height, 48)} fill="transparent" stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.7} listening={false} />
-                    <Text x={left + 12} y={top + 10} width={Math.max(width, 180) - 24} height={Math.max(height, 48) - 20} text="Text block" fontSize={16} fill={draftStroke} opacity={0.7} listening={false} />
+                    <Rect ref={draftTextRectRef} x={start.x} y={start.y} width={180} height={48} fill="transparent" stroke={draftStroke} strokeWidth={1.5 / viewport.scale} dash={[6, 4]} cornerRadius={8} opacity={0.7} listening={false} />
+                    <Text ref={draftTextLabelRef} x={start.x + 12} y={start.y + 10} width={156} height={28} text="Text block" fontSize={16} fill={draftStroke} opacity={0.7} listening={false} />
                   </>
                 )}
-                {creationDraft.tool === "circle" && (
-                  <Circle x={left + width / 2} y={top + height / 2} radius={Math.max(width, height) / 2} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} opacity={0.7} listening={false} />
+                {tool === "circle" && (
+                  <Circle ref={draftCircleRef} x={start.x} y={start.y} radius={12} fill={draftFill} stroke={draftStroke} strokeWidth={1.5 / viewport.scale} opacity={0.7} listening={false} />
                 )}
-                {creationDraft.tool === "line" && (
+                {tool === "line" && (
                   <Line
-                    x={creationDraft.start.x}
-                    y={creationDraft.start.y}
-                    points={[0, 0, lineDx, lineDy]}
+                    ref={draftLineRef}
+                    x={start.x}
+                    y={start.y}
+                    points={[0, 0, 0, 0]}
                     stroke={draftStroke}
                     strokeWidth={1.5 / viewport.scale}
                     dash={[6, 4]}
@@ -1785,9 +1825,10 @@ const handleNodeMouseLeave = useCallback((nodeId) => {
 
           {arrowDraft && activeTool === "arrow" && (
             <Arrow
+              ref={arrowShapeRef}
               x={arrowDraft.start.x}
               y={arrowDraft.start.y}
-              points={[0, 0, arrowDraft.end.x - arrowDraft.start.x, arrowDraft.end.y - arrowDraft.start.y]}
+              points={[0, 0, 0, 0]}
               stroke="#6366F1"
               fill="#6366F1"
               strokeWidth={2 / viewport.scale}

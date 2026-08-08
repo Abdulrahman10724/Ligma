@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ const zoneSchema = z.object({
   color: z.string().trim().min(4).max(9),
 });
 
-export default function PresenceZoneEditor({ open, onOpenChange, initialValue, onSubmit, saving }) {
+function PresenceZoneEditor({ open, onOpenChange, initialValue, onSubmit, saving }) {
   const form = useForm({
     resolver: zodResolver(zoneSchema),
     defaultValues: initialValue || DEFAULT_ZONE_DRAFT,
@@ -121,3 +122,4 @@ export default function PresenceZoneEditor({ open, onOpenChange, initialValue, o
     </Dialog>
   );
 }
+export default React.memo(PresenceZoneEditor);

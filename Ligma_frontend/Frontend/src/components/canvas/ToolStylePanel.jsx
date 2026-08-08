@@ -1,3 +1,4 @@
+import React from "react";
 import ColorSwatchPicker from "./ColorSwatchPicker";
 
 export const STROKE_COLORS = ["#1e1e1e", "#e03131", "#2f9e44", "#1971c2", "#f08c00"];
@@ -17,7 +18,7 @@ const EDGE_OPTIONS = [
 const HAS_BACKGROUND = new Set(["sticky", "rectangle", "circle"]);
 const HAS_EDGES = new Set(["rectangle"]);
 
-export default function ToolStylePanel({
+function ToolStylePanel({
   tool,
   strokeColor,
   onStrokeColorChange,
@@ -111,3 +112,4 @@ export default function ToolStylePanel({
     </div>
   );
 }
+export default React.memo(ToolStylePanel);
