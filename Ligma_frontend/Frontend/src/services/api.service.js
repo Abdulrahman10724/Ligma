@@ -45,7 +45,11 @@ apiClient.interceptors.response.use(
       }
     }
     
-    return Promise.reject(error.response?.data || error);
+    return Promise.reject({
+      data: error.response?.data || error,
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+    });
   }
 );
 

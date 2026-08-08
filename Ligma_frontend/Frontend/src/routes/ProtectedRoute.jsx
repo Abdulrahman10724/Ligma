@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 
 export default function ProtectedRoute({ children }) {
   const location = useLocation();
-  const { isAuthenticated, bootstrapping } = useSelector((state) => state.auth);
+  const { isAuthenticated, bootstrapping, user } = useSelector((state) => state.auth);
 
   if (bootstrapping) {
     return (
@@ -16,6 +16,10 @@ export default function ProtectedRoute({ children }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!user?.emailVerified) {
+    return <Navigate to="/verify-required" state={{ from: location, email: user?.email }} replace />;
   }
 
   return children;

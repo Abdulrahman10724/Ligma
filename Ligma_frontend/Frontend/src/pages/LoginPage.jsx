@@ -33,6 +33,10 @@ export default function LoginPage() {
     if (loginUser.fulfilled.match(result)) {
       navigate("/dashboard", { replace: true });
     }
+
+    if (loginUser.rejected.match(result) && result.payload?.status === 403) {
+      navigate("/verify-required", { replace: true, state: { email: values.email } });
+    }
   };
 
   return (

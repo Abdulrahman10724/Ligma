@@ -12,6 +12,8 @@ import MembersPage from "../pages/MembersPage";
 import HistoryPage from "../pages/HistoryPage";
 import SettingsPage from "../pages/SettingsPage";
 import AcceptInvitationPage from "../pages/AcceptInvitationPage";
+import VerifyEmailPage from "../pages/VerifyEmailPage";
+import VerifyRequiredPage from "../pages/VerifyRequiredPage";
 import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
@@ -22,6 +24,8 @@ export default function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/verify-required" element={<VerifyRequiredPage />} />
 
         {/* Dashboard Route */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

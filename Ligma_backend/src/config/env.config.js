@@ -29,7 +29,7 @@ AUTH_RATE_LIMIT_MAX: z.string().transform((v) => parseInt(v, 10)).default("20"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
   // RESEND is optional in non-production environments
   RESEND_API_KEY: isProd ? z.string().min(1, "RESEND_API_KEY is required") : z.string().optional().default("") ,
-  EMAIL_FROM: z.string().email().default("noreply@yourdomain.com"),
+  EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
 });
 
 const parsed = envSchema.safeParse(process.env);

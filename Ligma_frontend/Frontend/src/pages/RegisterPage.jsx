@@ -32,7 +32,7 @@ export default function RegisterPage() {
   const onSubmit = async (values) => {
     const result = await dispatch(registerUser(values));
     if (registerUser.fulfilled.match(result)) {
-      navigate("/dashboard", { replace: true });
+      navigate("/verify-required", { replace: true, state: { email: values.email } });
     }
   };
 

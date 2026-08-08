@@ -11,6 +11,9 @@ const initialState = {
   loading: false,
   bootstrapping: true,
   error: null,
+  verificationState: null,
+  verificationLoading: false,
+  verificationMessage: null,
 };
 
 const persistSession = (token) => {
@@ -40,7 +43,10 @@ export const loginUser = createAsyncThunk("auth/login", async (credentials, { re
   try {
     return await authService.login(credentials);
   } catch (error) {
-    return rejectWithValue(error?.message || "Login failed");
+    return rejectWithValue({
+      message: error?.message || error?.data?.message || "Login failed",
+      status: error?.status || error?.data?.status || 400,
+    });
   }
 });
 
@@ -49,6 +55,28 @@ export const registerUser = createAsyncThunk("auth/register", async (payload, { 
     return await authService.register(payload);
   } catch (error) {
     return rejectWithValue(error?.message || "Registration failed");
+  }
+});
+
+export const verifyEmailUser = createAsyncThunk("auth/verifyEmail", async (token, { rejectWithValue }) => {
+  try {
+    return await authService.verifyEmail(token);
+  } catch (error) {
+    return rejectWithValue({
+      message: error?.message || error?.data?.message || "Verification failed",
+      status: error?.status || error?.data?.status || 400,
+    });
+  }
+});
+
+export const resendVerificationEmail = createAsyncThunk("auth/resendVerification", async (_, { rejectWithValue }) => {
+  try {
+    return await authService.resendVerification();
+  } catch (error) {
+    return rejectWithValue({
+      message: error?.message || error?.data?.message || "Unable to resend verification email",
+      status: error?.status || error?.data?.status || 400,
+    });
   }
 });
 
@@ -113,6 +141,15 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
+      .addCase(verifyEmailUser.pending, (state) => {
+        state.verificationLoading = true;
+        state.verificationMessage = null;
+        state.verificationState = "loading";
+      })
+      .addCase(resendVerificationEmail.pending, (state) => {
+        state.verificationLoading = true;
+        state.verificationMessage = null;
+      })
       .addCase(registerUser.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -129,7 +166,29 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || "Login failed";
+        state.error = action.payload?.message || "Login failed";
+      })
+      .addCase(verifyEmailUser.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationMessage = action.payload?.message || "Email verified successfully";
+        state.verificationState = action.payload?.data?.alreadyVerified ? "already-verified" : "success";
+
+        if (state.user) {
+          state.user.emailVerified = true;
+        }
+      })
+      .addCase(verifyEmailUser.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationMessage = action.payload?.message || "Verification failed";
+        state.verificationState = action.payload?.status === 410 ? "expired" : "error";
+      })
+      .addCase(resendVerificationEmail.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationMessage = action.payload?.message || "Verification email sent";
+      })
+      .addCase(resendVerificationEmail.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationMessage = action.payload?.message || "Unable to resend verification email";
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
