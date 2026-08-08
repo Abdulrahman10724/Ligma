@@ -1,3 +1,5 @@
+import React from "react";
+
 import { Group, Rect, Text } from "react-konva";
 
 const STICKY_COLORS = {
@@ -13,7 +15,7 @@ const HEIGHT = 160;
 const PADDING = 12;
 const CORNER_RADIUS = 10;
 
-export default function StickyNode({
+function StickyNode({
   node,
   isSelected,
   permissions,
@@ -92,7 +94,7 @@ export default function StickyNode({
           ellipsis
         />
       )}
-      {isLocked && (
+    {isLocked && (
         <Text
           x={width - 52}
           y={8}
@@ -108,3 +110,17 @@ export default function StickyNode({
     </Group>
   );
 }
+
+function areEqual(prevProps, nextProps) {
+  return (
+    prevProps.node === nextProps.node &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.permissions?.canMove === nextProps.permissions?.canMove &&
+    prevProps.permissions?.canEdit === nextProps.permissions?.canEdit &&
+    prevProps.permissions?.canResize === nextProps.permissions?.canResize &&
+    prevProps.permissions?.isLocked === nextProps.permissions?.isLocked
+  );
+}
+
+export default React.memo(StickyNode, areEqual);

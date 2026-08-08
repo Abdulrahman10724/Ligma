@@ -1,10 +1,11 @@
+import React from "react";
 import { Group, Rect, Text } from "react-konva";
 
 const WIDTH = 180;
 const MIN_HEIGHT = 36;
 const PADDING = 8;
 
-export default function TextNode({
+function TextNode({
   node,
   isSelected,
   permissions,
@@ -74,7 +75,7 @@ export default function TextNode({
           wrap="word"
         />
       )}
-      {isLocked && (
+    {isLocked && (
         <Text
           x={width - 52}
           y={8}
@@ -90,3 +91,17 @@ export default function TextNode({
     </Group>
   );
 }
+
+function areEqual(prevProps, nextProps) {
+  return (
+    prevProps.node === nextProps.node &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.permissions?.canMove === nextProps.permissions?.canMove &&
+    prevProps.permissions?.canEdit === nextProps.permissions?.canEdit &&
+    prevProps.permissions?.canResize === nextProps.permissions?.canResize &&
+    prevProps.permissions?.isLocked === nextProps.permissions?.isLocked
+  );
+}
+
+export default React.memo(TextNode, areEqual);

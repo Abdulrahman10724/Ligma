@@ -140,7 +140,8 @@ export default function CanvasPage() {
   const { id: workspaceId } = useParams();
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { nodes: nodesMap, loading } = useSelector((state) => state.canvas);
+const nodesMap = useSelector((state) => state.canvas.nodes);
+const loading = useSelector((state) => state.canvas.loading);
   // const { activeWorkspace } = useSelector((state) => state.workspace);
   const { user: currentUser } = useSelector((state) => state.auth);
   const { workspaceRole, isLead, canEditWorkspace } = useWorkspaceRole();
@@ -182,6 +183,7 @@ const [savingPermissions, setSavingPermissions] = useState(false);
   const dragEmitRef = useRef(0);
   const draggingNodeRef = useRef(false);
   const editingNodeIdRef = useRef(null);
+  const localCursorRafRef = useRef(null);
   // const resizeEmitRef = useRef(0);
   const cursorEmitRef = useRef(0);
   const textEmitTimerRef = useRef(null);
@@ -245,7 +247,7 @@ useEffect(() => {
 
 
 
-  const nodes = Object.values(nodesMap);
+const nodes = useMemo(() => Object.values(nodesMap), [nodesMap]);
   const selectedNodeId = selectedNodeIds[0] || null;
   const selectedNode = selectedNodeId ? nodesMap[selectedNodeId] : null;
   const selectedNodePermissions = useNodePermissions(selectedNode);
@@ -366,29 +368,28 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
-    const transformer = transformerRef.current;
-    const stage = stageRef.current;
+  const transformer = transformerRef.current;
+  const stage = stageRef.current;
+  const currentNode = latestNodesRef.current[selectedNodeId];   // ref se, dependency nahi
 
-    if (
-      !transformer ||
-      !stage ||
-      !selectedNodeId ||
-      !selectedNode ||
-      !RESIZABLE_NODE_TYPES.has(selectedNode.type) ||
-      !selectedNodePermissions.canResize
-    ) {
-      transformer?.nodes([]);
-      return;
-    }
+  if (
+    !transformer ||
+    !stage ||
+    !selectedNodeId ||
+    !currentNode ||
+    !RESIZABLE_NODE_TYPES.has(currentNode.type) ||
+    !selectedNodePermissions.canResize
+  ) {
+    transformer?.nodes([]);
+    return;
+  }
 
-    const selectedShape = stage.findOne(`#node-${selectedNodeId}`);
-    if (selectedShape) {
-      transformer.nodes([selectedShape]);
-      transformer.getLayer()?.batchDraw();
-    }
-  }, [selectedNode, selectedNodeId, selectedNodePermissions.canResize]);
-
-  useEffect(() => {
+  const selectedShape = stage.findOne(`#node-${selectedNodeId}`);
+  if (selectedShape) {
+    transformer.nodes([selectedShape]);
+    transformer.getLayer()?.batchDraw();
+  }
+}, [selectedNodeId, selectedNode?.type, selectedNodePermissions.canResize]);useEffect(() => {
     if (editingNodeId && !selectedNodePermissions.canEdit) {
       setEditingNodeId(null);
     }
@@ -869,7 +870,13 @@ const buildPresetData = useCallback(
     if (!point) return;
 
     emitCursorPosition(point);
-    setLocalCursor(point);
+    emitCursorPosition(point);
+  if (!localCursorRafRef.current) {
+    localCursorRafRef.current = requestAnimationFrame(() => {
+      localCursorRafRef.current = null;
+      setLocalCursor(point);
+    });
+  }
 
     if (arrowDraft && activeTool === "arrow") {
       const rawDx = point.x - arrowDraft.start.x;
@@ -1532,31 +1539,33 @@ const handleSavePermissions = useCallback(async () => {
 //   },
 //   [dispatch, isLead, selectedNode, workspaceId]
 // );
+const handleNodeMouseEnter = useCallback((nodeId, canEdit) => {
+  setHoveredNodeId(nodeId);
+  const stage = stageRef.current;
+  if (stage && !draggingNodeRef.current) {
+    stage.container().style.cursor = canEdit ? "move" : "not-allowed";
+  }
+}, []);
+
+const handleNodeMouseLeave = useCallback((nodeId) => {
+  setHoveredNodeId((current) => (current === nodeId ? null : current));
+  const stage = stageRef.current;
+  if (stage && !draggingNodeRef.current) {
+    stage.container().style.cursor = activeTool === "select" ? "grab" : "crosshair";
+  }
+}, [activeTool]);
   const renderNode = (node) => {
     const permissions = computeNodePermissions(node, workspaceRole,currentUser?.id);
     const commonProps = {
-      node,
-      isSelected: selectedNodeIds.includes(node.id),
-      permissions,
-      isEditing: node.id === editingNodeId,
-      onDragEnd: handleNodeDragEnd,
-      onClick: handleNodeClick,
-      onMouseEnter: () => {
-        setHoveredNodeId(node.id);
-        const stage = stageRef.current;
-        if (stage && !draggingNodeRef.current) {
-          stage.container().style.cursor = permissions.canEdit ? "move" : "not-allowed";
-        }
-      },
-      onMouseLeave: () => {
-        setHoveredNodeId((current) => (current === node.id ? null : current));
-        const stage = stageRef.current;
-        if (stage && !draggingNodeRef.current) {
-          stage.container().style.cursor = activeTool === "select" ? "grab" : "crosshair";
-        }
-      },
-    };
-
+  node,
+  isSelected: selectedNodeIds.includes(node.id),
+  permissions,
+  isEditing: node.id === editingNodeId,
+  onDragEnd: handleNodeDragEnd,
+  onClick: handleNodeClick,
+  onMouseEnter: () => handleNodeMouseEnter(node.id, permissions.canEdit),
+  onMouseLeave: () => handleNodeMouseLeave(node.id),
+};
     switch (node.type) {
       case "sticky": return <StickyNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
       case "text": return <TextNode key={node.id} {...commonProps} onDragMove={handleNodeDragMove} onTransform={handleNodeTransform} onTransformEnd={handleNodeTransformEnd} onDoubleClick={handleNodeDoubleClick} />;
@@ -1573,6 +1582,9 @@ const handleSavePermissions = useCallback(async () => {
       default: return null;
     }
   };
+  useEffect(() => () => {
+  if (localCursorRafRef.current) cancelAnimationFrame(localCursorRafRef.current);
+}, []);
 
   useEffect(() => {
     const targetNodeId = searchParams.get("node");

@@ -1,3 +1,4 @@
+import React from "react";
 import { Group, Rect, Circle, Text, Line } from "react-konva";
 
 const DEFAULTS = {
@@ -18,8 +19,7 @@ function getPolygonPoints(type, width, height) {
 
   return [];
 }
-
-export default function ShapeNode({
+function ShapeNode({
   node,
   isSelected,
   permissions,
@@ -230,3 +230,15 @@ export default function ShapeNode({
 
   return null;
 }
+function areEqual(prevProps, nextProps) {
+  return (
+    prevProps.node === nextProps.node &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.permissions?.canMove === nextProps.permissions?.canMove &&
+    prevProps.permissions?.canEdit === nextProps.permissions?.canEdit &&
+    prevProps.permissions?.canResize === nextProps.permissions?.canResize &&
+    prevProps.permissions?.isLocked === nextProps.permissions?.isLocked
+  );
+}
+export default React.memo(ShapeNode, areEqual);

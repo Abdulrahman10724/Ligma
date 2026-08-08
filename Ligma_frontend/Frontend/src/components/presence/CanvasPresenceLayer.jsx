@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ function buildResizePreview(zone, handle, deltaX, deltaY) {
   };
 }
 
-export default function CanvasPresenceLayer({
+function CanvasPresenceLayer({
   viewport,
   dimensions,
   members = [],
@@ -294,7 +294,7 @@ export default function CanvasPresenceLayer({
             isSelected={selectedZoneId === zone.id}
             activeUsers={zonePresenceMap[zone.id] || []}
             canManage={canManage}
-            onSelect={focusZone}
+            onSelect={(zoneId) => focusZone(zoneList.find((z) => z.id === zoneId) || null)}
             onDragStart={(event, currentZone) => {
               if (!canManage) return;
               event.preventDefault();
@@ -401,3 +401,5 @@ export default function CanvasPresenceLayer({
     </>
   );
 }
+
+export default React.memo(CanvasPresenceLayer);

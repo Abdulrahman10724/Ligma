@@ -1,8 +1,9 @@
+import React from "react";
 import { Group, Arrow, Circle, Line, Text } from "react-konva";
 
 // ArrowNode renders as a directed arrow from (x,y) to (x+dx, y+dy)
 // data.dx and data.dy encode the vector; defaults to a 150px horizontal arrow
-export default function ArrowNode({
+function ArrowNode({
   node,
   isSelected,
   canEdit = true,
@@ -166,3 +167,16 @@ export default function ArrowNode({
     </Group>
   );
 }
+function areEqual(prevProps, nextProps) {
+  return (
+    prevProps.node === nextProps.node &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.canEdit === nextProps.canEdit &&
+    prevProps.permissions?.canMove === nextProps.permissions?.canMove &&
+    prevProps.permissions?.canEdit === nextProps.permissions?.canEdit &&
+    prevProps.permissions?.canResize === nextProps.permissions?.canResize &&
+    prevProps.permissions?.isLocked === nextProps.permissions?.isLocked
+  );
+}
+
+export default React.memo(ArrowNode, areEqual);
