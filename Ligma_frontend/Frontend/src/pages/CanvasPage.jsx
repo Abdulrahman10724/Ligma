@@ -181,6 +181,32 @@ const [savingPermissions, setSavingPermissions] = useState(false);
   const colorTimersRef = useRef({});
   const clipboardNodeRef = useRef(null);
   const dragEmitRef = useRef(0);
+  const pendingNodeUpdatesRef = useRef({}); // nodeId -> { x, y, dataPatch }
+const updateRafRef = useRef(null);
+
+const flushPendingNodeUpdates = useCallback(() => {
+  updateRafRef.current = null;
+  const pending = pendingNodeUpdatesRef.current;
+  pendingNodeUpdatesRef.current = {};
+  Object.entries(pending).forEach(([nodeId, update]) => {
+    if (update.x !== undefined && update.y !== undefined) {
+      dispatch(updateNodePositionLocally({ nodeId, x: update.x, y: update.y }));
+    }
+    if (update.dataPatch) {
+      dispatch(updateNodeDataLocally({ nodeId, patch: update.dataPatch }));
+    }
+  });
+}, [dispatch]);
+
+const scheduleNodeUpdate = useCallback((nodeId, update) => {
+  pendingNodeUpdatesRef.current[nodeId] = {
+    ...pendingNodeUpdatesRef.current[nodeId],
+    ...update,
+  };
+  if (!updateRafRef.current) {
+    updateRafRef.current = requestAnimationFrame(flushPendingNodeUpdates);
+  }
+}, [flushPendingNodeUpdates]);
   const draggingNodeRef = useRef(false);
   const editingNodeIdRef = useRef(null);
   const localCursorRafRef = useRef(null);
@@ -257,16 +283,17 @@ useEffect(() => {
 
 
 const nodes = useMemo(() => Object.values(nodesMap), [nodesMap]);
+const sortedNodes = useMemo(
+  () => [...nodes].sort((a, b) => (a.parentNodeId ? 1 : 0) - (b.parentNodeId ? 1 : 0)),
+  [nodes]
+);
   const selectedNodeId = selectedNodeIds[0] || null;
   const selectedNode = selectedNodeId ? nodesMap[selectedNodeId] : null;
   const selectedNodePermissions = useNodePermissions(selectedNode);
   const canEditCanvas = canEditWorkspace;
-  const gridLines = buildGridLines(
-    dimensions.width,
-    dimensions.height,
-    viewport.scale,
-    viewport.x,
-    viewport.y
+  const gridLines = useMemo(
+    () => buildGridLines(dimensions.width, dimensions.height, viewport.scale, viewport.x, viewport.y),
+    [dimensions.width, dimensions.height, viewport.scale, viewport.x, viewport.y]
   );
   // Re-compute from CSS property on each render (reactive to isDarkMode state changes)
   const gridColor = getCanvasGridColor();
@@ -1073,8 +1100,9 @@ const buildPresetData = useCallback(
       const deltaX = x - node.x;
       const deltaY = y - node.y;
 
-      dispatch(updateNodePositionLocally({ nodeId, x, y }));
-      emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
+     delete pendingNodeUpdatesRef.current[nodeId];
+dispatch(updateNodePositionLocally({ nodeId, x, y }));
+emit("canvas:drag", { workspaceId, nodeId, x: Math.round(x), y: Math.round(y) });
 
       // Text nodes can be nested inside sticky/rectangle/circle containers.
       let parentNodeId = node.parentNodeId || null;
@@ -1122,18 +1150,17 @@ const buildPresetData = useCallback(
         stage.container().style.cursor = "move";
       }
 
-      const deltaX = x - node.x;
-      const deltaY = y - node.y;
+     const deltaX = x - node.x;
+const deltaY = y - node.y;
 
-      dispatch(updateNodePositionLocally({ nodeId, x, y }));
+scheduleNodeUpdate(nodeId, { x, y });
 
-      // Live-follow: move children in real-time while a container is dragged.
-      if (node.type !== "text") {
-        const children = nodes.filter((n) => n.parentNodeId === nodeId);
-        children.forEach((child) => {
-          dispatch(updateNodePositionLocally({ nodeId: child.id, x: child.x + deltaX, y: child.y + deltaY }));
-        });
-      }
+if (node.type !== "text") {
+  const children = nodes.filter((n) => n.parentNodeId === nodeId);
+  children.forEach((child) => {
+    scheduleNodeUpdate(child.id, { x: child.x + deltaX, y: child.y + deltaY });
+  });
+}
 
       const now = Date.now();
       if (now - dragEmitRef.current > 80) {
@@ -1221,8 +1248,7 @@ const buildPresetData = useCallback(
       target.scaleX(1);
       target.scaleY(1);
 
-      dispatch(updateNodePositionLocally({ nodeId, x: target.x(), y: target.y() }));
-      dispatch(updateNodeDataLocally({ nodeId, patch: nextData }));
+    scheduleNodeUpdate(nodeId, { x: target.x(), y: target.y(), dataPatch: nextData });
 
       // Throttle the broadcast so we don't flood the socket every frame
       if (transformEmitTimersRef.current[nodeId]) return;
@@ -1280,7 +1306,8 @@ const buildPresetData = useCallback(
         nextData.height = nextHeight;
       }
 
-      dispatch(updateNodeDataLocally({ nodeId, patch: nextData }));
+delete pendingNodeUpdatesRef.current[nodeId];
+dispatch(updateNodeDataLocally({ nodeId, patch: nextData }));
 
       const result = await dispatch(
         updateCanvasNode({
@@ -1629,8 +1656,8 @@ const handleNodeMouseLeave = useCallback((nodeId) => {
   };
  useEffect(() => () => {
   if (localCursorRafRef.current) cancelAnimationFrame(localCursorRafRef.current);
-  
-}, []); 
+  if (updateRafRef.current) cancelAnimationFrame(updateRafRef.current);
+}, []);
 
   useEffect(() => {
     const targetNodeId = searchParams.get("node");
@@ -1762,9 +1789,7 @@ const handleNodeMouseLeave = useCallback((nodeId) => {
 
        {/* Nodes layer */}
         <Layer>
-          {[...nodes]
-            .sort((a, b) => (a.parentNodeId ? 1 : 0) - (b.parentNodeId ? 1 : 0))
-            .map(renderNode)}
+  {sortedNodes.map(renderNode)}
 
          {creationDraft && activeTool !== "arrow" && (() => {
             const { tool, start } = creationDraft;

@@ -15,6 +15,7 @@ import {
 } from "./member.service.js";
 import { findWorkspaceById } from "../models/workspace.model.js";
 import { emitWorkspaceEvent } from "../socket/socket.service.js";
+import { assertChannelVisible } from "./channel.service.js";
 
 const ensureIndexes = async () => {
   await ensureMessageIndexes();
@@ -28,6 +29,7 @@ const verifyChannelAccess = async (workspaceId, channelId, userId) => {
     throw err;
   }
   await assertWorkspaceAccess(workspaceId, userId);
+  await assertChannelVisible(channel, workspaceId, userId);
   return sanitizeChannel(channel);
 };
 

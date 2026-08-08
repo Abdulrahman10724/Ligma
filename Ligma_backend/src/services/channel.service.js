@@ -8,18 +8,33 @@ import {
   deleteChannel as deleteChannelModel,
   seedDefaultChannels,
 } from "../models/channel.model.js";
-import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "./member.service.js";
+import { assertWorkspaceAccess, assertWorkspaceEditAccess,getWorkspaceRole } from "./member.service.js";
 import { emitWorkspaceEvent } from "../socket/socket.service.js";
-
 const ensureIndexes = async () => {
   await ensureChannelIndexes();
+};
+const assertChannelVisible = async (channel, workspaceId, userId) => {
+  if (channel.visibility !== "private") return;
+  const role = await getWorkspaceRole(workspaceId, userId);
+  const isCreator = channel.createdBy?.toString() === userId;
+  if (role !== "Lead" && !isCreator) {
+    const err = new Error("This channel is private");
+    err.statusCode = 403;
+    throw err;
+  }
 };
 
 const listChannels = async (workspaceId, actorId) => {
   await ensureIndexes();
   await assertWorkspaceAccess(workspaceId, actorId);
   const channels = await findChannelsByWorkspace(workspaceId);
-  return channels.map(sanitizeChannel);
+  const role = await getWorkspaceRole(workspaceId, actorId);
+  const visible = channels.filter((c) => {
+    if (c.visibility !== "private") return true;
+    const isCreator = c.createdBy?.toString() === actorId;
+    return role === "Lead" || isCreator;
+  });
+  return visible.map(sanitizeChannel);
 };
 
 const createChannel = async (workspaceId, actorId, data) => {
@@ -93,6 +108,7 @@ export {
   createChannel,
   deleteChannel,
   seedChannelsForWorkspace,
+  assertChannelVisible,
 };
 
 export default {
@@ -101,4 +117,5 @@ export default {
   createChannel,
   deleteChannel,
   seedChannelsForWorkspace,
+  assertChannelVisible,
 };

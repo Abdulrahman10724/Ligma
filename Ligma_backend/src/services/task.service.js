@@ -11,19 +11,21 @@ import {
 import { emitWorkspaceEvent } from "../socket/socket.service.js";
 import { appendEvent, EVENT_TYPES } from "./event-log.service.js";
 import logger from "../utils/logger.util.js";
-
+import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "./member.service.js";
 const ensureIndexes = async () => {
   await ensureTaskIndexes();
 };
 
-const listTasks = async (workspaceId) => {
+const listTasks = async (workspaceId, userId) => {
   await ensureIndexes();
+  await assertWorkspaceAccess(workspaceId, userId);
   const tasks = await findTasksByWorkspace(workspaceId);
   return tasks.map(sanitizeTask);
 };
 
 const createTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null) => {
   await ensureIndexes();
+    await assertWorkspaceEditAccess(workspaceId, actorId); 
   const existing = nodeId ? await findTaskByNodeId(workspaceId, nodeId) : null;
   if (existing) {
     logger.info(`task.service: task already exists for node=${nodeId} task=${existing._id}`);
@@ -87,6 +89,7 @@ const createTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null)
 
 const updateTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null) => {
   await ensureIndexes();
+    await assertWorkspaceEditAccess(workspaceId, actorId); 
   const existing = await findTaskByNodeId(workspaceId, nodeId);
 
   // Agar node ke liye abhi tak koi task nahi bana (e.g. node placeholder text
@@ -130,6 +133,7 @@ const updateTaskForNode = async (workspaceId, nodeId, data = {}, actorId = null)
 };
 const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
   await ensureIndexes();
+    await assertWorkspaceEditAccess(workspaceId, actorId);
   const existing = await findTaskByNodeId(workspaceId, nodeId);
   if (!existing) return;
   if (existing.workspaceId?.toString() !== workspaceId) {
@@ -185,6 +189,7 @@ const removeTaskForNode = async (workspaceId, nodeId, actorId = null) => {
  */
 const removeTaskById = async (workspaceId, taskId, actorId = null) => {
   await ensureIndexes();
+    await assertWorkspaceEditAccess(workspaceId, actorId); 
   const existing = await findTaskById(taskId);
   if (!existing) return;
 

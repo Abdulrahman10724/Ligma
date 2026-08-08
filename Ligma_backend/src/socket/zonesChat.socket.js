@@ -12,7 +12,8 @@
 
 import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "../services/member.service.js";
 import { findZoneAtPoint, updateUserZonePresence, removeUserFromAllZones } from "../services/zone-presence.service.js";
-
+import { assertChannelVisible } from "../services/channel.service.js";
+import { findChannelById } from "../models/channel.model.js";
 let _io = null;
 let _socket = null;
 
@@ -51,6 +52,11 @@ const registerChatHandlers = (io, socket) => {
     try {
       if (!workspaceId || !channelId) throw new Error("workspaceId and channelId required");
       await assertWorkspaceAccess(workspaceId, socket.user.id);
+      const channel = await findChannelById(channelId);
+      if (!channel || channel.workspaceId?.toString() !== workspaceId) {
+        throw new Error("Channel not found");
+      }
+      await assertChannelVisible(channel, workspaceId, socket.user.id);
       socket.join(roomForChannel(workspaceId, channelId));
       ack?.({ success: true });
     } catch (error) {

@@ -5,6 +5,7 @@ const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 let socketInstance = null;
 const joinedWorkspaces = new Set();
+const workspaceRefCounts = new Map(); // workspaceId -> number of active consumers
 
 const ensureSocket = () => {
   if (socketInstance) {
@@ -55,22 +56,32 @@ export const useSocket = ({ workspaceId, autoJoin = true } = {}) => {
     socket.on("connect_error", handleConnectError);
     socket.on("disconnect", handleDisconnect);
 
-    if (workspaceId && autoJoin) {
-      joinedWorkspaces.add(workspaceId);
-      socket.emit("workspace:join", { workspaceId });
+   if (workspaceId && autoJoin) {
+  const nextCount = (workspaceRefCounts.get(workspaceId) || 0) + 1;
+  workspaceRefCounts.set(workspaceId, nextCount);
+  if (nextCount === 1) {
+    joinedWorkspaces.add(workspaceId);
+    socket.emit("workspace:join", { workspaceId });
+  }
+}
+
+return () => {
+  socket.off("connect", handleConnect);
+  socket.io.off("reconnect_attempt", handleReconnectAttempt);
+  socket.off("connect_error", handleConnectError);
+  socket.off("disconnect", handleDisconnect);
+
+  if (workspaceId && autoJoin) {
+    const nextCount = (workspaceRefCounts.get(workspaceId) || 1) - 1;
+    if (nextCount <= 0) {
+      workspaceRefCounts.delete(workspaceId);
+      joinedWorkspaces.delete(workspaceId);
+      socket.emit("workspace:leave", { workspaceId });
+    } else {
+      workspaceRefCounts.set(workspaceId, nextCount);
     }
-
-    return () => {
-      socket.off("connect", handleConnect);
-      socket.io.off("reconnect_attempt", handleReconnectAttempt);
-      socket.off("connect_error", handleConnectError);
-      socket.off("disconnect", handleDisconnect);
-
-      if (workspaceId && autoJoin) {
-        joinedWorkspaces.delete(workspaceId);
-        socket.emit("workspace:leave", { workspaceId });
-      }
-    };
+  }
+};
   }, [workspaceId, autoJoin]);
 
   const emit = (event, data) => {

@@ -5,7 +5,7 @@ import { createTaskSchema, updateTaskSchema, statusSchema } from "../validation/
 const listTasks = async (req, res) => {
   try {
     const { workspaceId } = req.params;
-    const tasks = await taskService.listTasks(workspaceId);
+const tasks = await taskService.listTasks(workspaceId, req.user.id);
     return sendSuccess(res, 200, "Tasks fetched", tasks);
   } catch (err) {
     return sendError(res, err.statusCode || 500, err.message || "Server error");
@@ -28,11 +28,11 @@ const updateTask = async (req, res) => {
     const { workspaceId, taskId } = req.params;
     const parsed = updateTaskSchema.parse(req.body);
     const existing = await taskService.getTaskById(taskId);
-    if (!existing) {
-      const error = new Error("Task not found");
-      error.statusCode = 404;
-      throw error;
-    }
+if (!existing || existing.workspaceId !== workspaceId) {
+  const error = new Error("Task not found");
+  error.statusCode = 404;
+  throw error;
+}
     const updated = await taskService.updateTaskForNode(workspaceId, existing.nodeId || null, parsed, req.user.id);
     return sendSuccess(res, 200, "Task updated", updated);
   } catch (err) {
@@ -44,12 +44,12 @@ const updateStatus = async (req, res) => {
   try {
     const { workspaceId, taskId } = req.params;
     const { status } = statusSchema.parse(req.body);
-    const existing = await taskService.getTaskById(taskId);
-    if (!existing) {
-      const error = new Error("Task not found");
-      error.statusCode = 404;
-      throw error;
-    }
+   const existing = await taskService.getTaskById(taskId);
+if (!existing || existing.workspaceId !== workspaceId) {
+  const error = new Error("Task not found");
+  error.statusCode = 404;
+  throw error;
+}
     const updated = await taskService.updateTaskForNode(workspaceId, existing.nodeId || null, { status }, req.user.id);
     return sendSuccess(res, 200, "Status updated", updated);
   } catch (err) {

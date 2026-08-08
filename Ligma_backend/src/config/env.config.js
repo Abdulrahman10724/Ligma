@@ -24,6 +24,8 @@ const envSchema = z.object({
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
   OPENROUTER_CHAT_ENDPOINT: z.string().default("/chat/completions"),
   SOCKET_CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.string().transform((v) => parseInt(v, 10)).default("900000"), // 15 min
+AUTH_RATE_LIMIT_MAX: z.string().transform((v) => parseInt(v, 10)).default("20"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
   // RESEND is optional in non-production environments
   RESEND_API_KEY: isProd ? z.string().min(1, "RESEND_API_KEY is required") : z.string().optional().default("") ,
