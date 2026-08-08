@@ -1,18 +1,25 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 import config from "../config/env.config.js";
 import logger from "../utils/logger.util.js";
 
-const resend = config.RESEND_API_KEY ? new Resend(config.RESEND_API_KEY) : null;
-
+const transporter = config.GMAIL_USER && config.GMAIL_APP_PASSWORD
+  ? nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: config.GMAIL_USER,
+        pass: config.GMAIL_APP_PASSWORD,
+      },
+    })
+  : null;
 const buildVerificationUrl = (token) => {
   const baseUrl = config.CLIENT_URL.replace(/\/$/, "");
   return `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
 };
 
 const sendVerificationEmail = async ({ to, name, token }) => {
-  if (!resend) {
-    logger.warn("Resend is not configured; skipping verification email delivery.");
+  if (!transporter) {
+    logger.warn("Gmail transporter is not configured; skipping verification email delivery.");
     return { success: false, skipped: true };
   }
 
@@ -48,16 +55,16 @@ const sendVerificationEmail = async ({ to, name, token }) => {
   const text = `Hi ${name || "there"},\n\nWelcome to LIGMA. Please verify your email address to get started.\n\n${verificationUrl}\n\nThis verification link expires in 24 hours.`;
 
   try {
-    const response = await resend.emails.send({
-      from: config.EMAIL_FROM,
-      to: [to],
+    const info = await transporter.sendMail({
+      from: `"LIGMA" <${config.GMAIL_USER}>`,
+      to,
       subject: "Verify your LIGMA email",
       html,
       text,
     });
 
-    logger.info("Verification email sent", { id: response?.data?.id, to });
-    return { success: true, id: response?.data?.id };
+    logger.info("Verification email sent", { id: info?.messageId, to });
+    return { success: true, id: info?.messageId };
   } catch (error) {
     logger.error("Failed to send verification email", { message: error?.message, to });
     throw new Error("We couldn't send the verification email right now.");

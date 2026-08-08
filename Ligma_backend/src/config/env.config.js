@@ -30,8 +30,10 @@ AUTH_RATE_LIMIT_MAX: z.string().transform((v) => parseInt(v, 10)).default("20"),
   // RESEND is optional in non-production environments
   RESEND_API_KEY: isProd ? z.string().min(1, "RESEND_API_KEY is required") : z.string().optional().default("") ,
   EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
+  // Gmail + Nodemailer (free email delivery)
+  GMAIL_USER: z.string().optional().default(""),
+  GMAIL_APP_PASSWORD: z.string().optional().default(""),
 });
-
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
