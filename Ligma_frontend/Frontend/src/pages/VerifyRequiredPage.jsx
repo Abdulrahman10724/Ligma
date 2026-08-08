@@ -4,18 +4,32 @@ import { useDispatch, useSelector } from "react-redux";
 import { MailWarning, RefreshCw } from "lucide-react";
 
 import { BrandLockup } from "../components/ui/BrandMark";
-import { resendVerificationEmail } from "../redux/authSlice";
-
+import { resendVerificationEmail, clearAuthState, bootstrapAuth } from "../redux/authSlice";
 export default function VerifyRequiredPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, verificationLoading, verificationMessage } = useSelector((state) => state.auth);
+const { user, isAuthenticated, verificationLoading, verificationMessage } = useSelector((state) => state.auth);
   const [feedback, setFeedback] = useState(verificationMessage || "");
 
   useEffect(() => {
     setFeedback(verificationMessage || "");
   }, [verificationMessage]);
+  // Agar email kisi doosri tab/device pe already verify ho chuki hai — auto redirect
+useEffect(() => {
+  if (isAuthenticated && user?.emailVerified) {
+    navigate("/dashboard", { replace: true });
+  }
+}, [isAuthenticated, user?.emailVerified, navigate]);
+
+// Har 5 second baad session refresh karo taake doosri tab mein verify hone ka pata chal jaye
+useEffect(() => {
+  if (!isAuthenticated || user?.emailVerified) return undefined;
+  const interval = setInterval(() => {
+    dispatch(bootstrapAuth());
+  }, 5000);
+  return () => clearInterval(interval);
+}, [dispatch, isAuthenticated, user?.emailVerified]);
 
   const handleResend = async () => {
     const result = await dispatch(resendVerificationEmail());
@@ -77,7 +91,10 @@ export default function VerifyRequiredPage() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/login", { replace: true })}
+              onClick={() => {
+    dispatch(clearAuthState());
+    navigate("/login", { replace: true });
+              }}
               className="inline-flex items-center justify-center rounded-full border border-[color:var(--border)] px-4 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:border-[color:var(--primary)] hover:text-[color:var(--primary)]"
             >
               Back to sign in

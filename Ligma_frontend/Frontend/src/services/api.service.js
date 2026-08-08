@@ -26,25 +26,39 @@ apiClient.interceptors.request.use(
 );
 
 // Response Interceptor: Handle errors globally (e.g., unauthorized)
+const AUTH_ROUTES_SKIP_REDIRECT = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/resend-verification",
+  "/auth/verify-email",
+];
+
 apiClient.interceptors.response.use(
   (response) => {
     return response.data;
   },
   async (error) => {
     const originalRequest = error.config;
-    
-    // Check if error is 401 Unauthorized
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    const isAuthRoute = AUTH_ROUTES_SKIP_REDIRECT.some((route) =>
+      originalRequest?.url?.includes(route)
+    );
+
+    // Sirf protected routes ke 401 par hi force-logout + redirect karo.
+    // Auth-flow routes (login/register/resend/verify) apna error khud
+    // Redux state mein show karte hain — inhe redirect nahi karna chahiye.
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRoute
+    ) {
       originalRequest._retry = true;
-      
-      // Clear token
       localStorage.removeItem("ligma_token");
-      
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }
     }
-    
+
     return Promise.reject({
       data: error.response?.data || error,
       status: error.response?.status,

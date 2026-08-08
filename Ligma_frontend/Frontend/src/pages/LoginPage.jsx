@@ -15,18 +15,20 @@ const schema = z.object({
 export default function LoginPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, isAuthenticated, error } = useSelector((state) => state.auth);
+const { loading, isAuthenticated, error, user } = useSelector((state) => state.auth);
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+ useEffect(() => {
+  if (isAuthenticated && user?.emailVerified) {
+    navigate("/dashboard", { replace: true });
+  } else if (isAuthenticated && user && !user.emailVerified) {
+    navigate("/verify-required", { replace: true, state: { email: user.email } });
+  }
+}, [isAuthenticated, user, navigate]);
 
   const onSubmit = async (values) => {
     const result = await dispatch(loginUser(values));
