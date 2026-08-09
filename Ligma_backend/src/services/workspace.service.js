@@ -8,6 +8,7 @@ import {
   updateWorkspaceById,
 } from "../models/workspace.model.js";
 import { findMembershipsForUser } from "../models/workspace-member.model.js";
+import { seedChannelsForWorkspace } from "./channel.service.js";
 
 const listUserWorkspaces = async (ownerId) => {
   await ensureWorkspaceIndexes();
@@ -78,9 +79,8 @@ const getWorkspace = async (workspaceId, ownerId) => {
 
 const createUserWorkspace = async ({ title, description }, ownerId) => {
   await ensureWorkspaceIndexes();
-
   const workspace = await createWorkspace({ title, description, ownerId });
-
+  await seedChannelsForWorkspace(workspace._id.toString(), ownerId); //  default channels
   return sanitizeWorkspace(workspace);
 };
 
@@ -98,7 +98,7 @@ const updateUserWorkspace = async (workspaceId, ownerId, payload) => {
   }
 
   const result = await updateWorkspaceById(workspaceId, ownerId, updateFields);
-  const workspace = result?.value;
+  const workspace = result;
 
   if (!workspace) {
     const error = new Error("Workspace not found");

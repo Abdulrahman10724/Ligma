@@ -60,7 +60,7 @@ const updateTask = async (taskId, workspaceId, updateFields) => {
     { $set: set },
     { returnDocument: "after" }
   );
-  return result.value;
+  return result;
 };
 
 const deleteTask = async (taskId, workspaceId) =>

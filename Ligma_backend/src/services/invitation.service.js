@@ -225,7 +225,7 @@ const acceptInvitation = async (token, user) => {
   });
 
   return {
-    invitation: hydrateInvitation(updated.value),
+    invitation: hydrateInvitation(update),
     workspace: sanitizeWorkspace(workspace),
   };
 };
@@ -279,7 +279,7 @@ const acceptInvitationById = async (invitationId, user) => {
   });
 
   return {
-    invitation: hydrateInvitation(updated.value),
+    invitation: hydrateInvitation(updated),
     workspace: sanitizeWorkspace(workspace),
   };
 };
@@ -314,7 +314,7 @@ const rejectInvitation = async (token, user) => {
     updatedAt: now,
   });
 
-  return hydrateInvitation(updated.value);
+  return hydrateInvitation(updated);
 };
 
 const rejectInvitationById = async (invitationId, user) => {
@@ -348,7 +348,7 @@ const rejectInvitationById = async (invitationId, user) => {
     updatedAt: now,
   });
 
-  return hydrateInvitation(updated.value);
+  return hydrateInvitation(updated);
 };
 
 const revokeInvitation = async (token, userId) => {
@@ -377,7 +377,7 @@ const revokeInvitation = async (token, userId) => {
     updatedAt: now,
   });
 
-  return hydrateInvitation(updated.value);
+  return hydrateInvitation(updated);
 };
 
 const revokeInvitationById = async (workspaceId, invitationId, userId) => {
@@ -406,7 +406,7 @@ const revokeInvitationById = async (workspaceId, invitationId, userId) => {
     updatedAt: now,
   });
 
-  return hydrateInvitation(updated.value);
+  return hydrateInvitation(updated);
 };
 
 export {
