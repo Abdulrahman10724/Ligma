@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { Link, useNavigate, useLocation } from "react-router-dom";import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +15,10 @@ const schema = z.object({
 export default function RegisterPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+const from = location.state?.from
+  ? `${location.state.from.pathname}${location.state.from.search || ""}`
+  : null;
   const { loading, isAuthenticated, error } = useSelector((state) => state.auth);
 
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -23,18 +26,18 @@ export default function RegisterPage() {
     defaultValues: { name: "", email: "", password: "" },
   });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+ useEffect(() => {
+  if (isAuthenticated) {
+    navigate(from || "/dashboard", { replace: true });
+  }
+}, [isAuthenticated, navigate, from]);
 
-  const onSubmit = async (values) => {
-    const result = await dispatch(registerUser(values));
-    if (registerUser.fulfilled.match(result)) {
-      navigate("/verify-required", { replace: true, state: { email: values.email } });
-    }
-  };
+ const onSubmit = async (values) => {
+  const result = await dispatch(registerUser(values));
+  if (registerUser.fulfilled.match(result)) {
+    navigate(from || "/verify-required", { replace: true, state: from ? undefined : { email: values.email } });
+  }
+};
 
   return (
     <div className="min-h-screen flex bg-[color:var(--background)] text-[color:var(--foreground)]">

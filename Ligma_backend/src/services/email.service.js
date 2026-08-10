@@ -12,6 +12,7 @@ const transporter = config.GMAIL_USER && config.GMAIL_APP_PASSWORD
       },
     })
   : null;
+
 const buildVerificationUrl = (token) => {
   const baseUrl = config.CLIENT_URL.replace(/\/$/, "");
   return `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
@@ -71,9 +72,62 @@ const sendVerificationEmail = async ({ to, name, token }) => {
   }
 };
 
-export { buildVerificationUrl, sendVerificationEmail };
+const buildInvitationHtml = ({ inviterName, workspaceTitle, role, inviteLink }) => `
+  <div style="font-family: Inter, Arial, sans-serif; background:#f7f7fb; padding:24px; color:#111827;">
+    <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden;">
+      <div style="background:linear-gradient(135deg, #0d9488 0%, #0f766e 100%); padding:24px 28px; color:#ffffff;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; opacity:0.9;">LIGMA</div>
+        <h1 style="margin:12px 0 6px; font-size:22px;">You're invited to collaborate</h1>
+        <p style="margin:0; font-size:14px; opacity:0.95;">${inviterName || "A teammate"} invited you to join a workspace on LIGMA.</p>
+      </div>
+      <div style="padding:28px;">
+        <p style="margin:0 0 16px; line-height:1.6; color:#374151;">
+          <strong>${inviterName || "Someone"}</strong> invited you to join <strong>${workspaceTitle}</strong> as a <strong>${role}</strong>.
+        </p>
+        <p style="margin:0 0 20px;">
+          <a href="${inviteLink}" style="display:inline-block; padding:12px 20px; border-radius:999px; background:#0d9488; color:#ffffff; text-decoration:none; font-weight:700;">Accept invitation</a>
+        </p>
+        <p style="margin:0 0 10px; font-size:13px; color:#6b7280; line-height:1.6;">
+          If the button does not work, copy and open this link in your browser:<br />
+          <span style="word-break:break-all;">${inviteLink}</span>
+        </p>
+        <p style="margin:16px 0 0; font-size:12px; color:#9ca3af; line-height:1.6;">
+          If you weren't expecting this invitation, you can safely ignore this email.
+        </p>
+      </div>
+    </div>
+  </div>
+`;
+
+const sendInvitationEmail = async ({ to, inviterName, workspaceTitle, role, inviteLink }) => {
+  if (!transporter) {
+    logger.warn("Gmail transporter is not configured; skipping invitation email delivery.");
+    return { success: false, skipped: true };
+  }
+
+  const html = buildInvitationHtml({ inviterName, workspaceTitle, role, inviteLink });
+  const text = `${inviterName || "Someone"} invited you to join "${workspaceTitle}" as a ${role} on LIGMA.\n\nAccept the invitation: ${inviteLink}`;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"LIGMA" <${config.GMAIL_USER}>`,
+      to,
+      subject: `${inviterName || "Someone"} invited you to join "${workspaceTitle}" on LIGMA`,
+      html,
+      text,
+    });
+    logger.info("Invitation email sent", { id: info?.messageId, to });
+    return { success: true, id: info?.messageId };
+  } catch (error) {
+    logger.error("Failed to send invitation email", { message: error?.message, to });
+    throw new Error("We couldn't send the invitation email right now.");
+  }
+};
+
+export { buildVerificationUrl, sendVerificationEmail, sendInvitationEmail };
 
 export default {
   buildVerificationUrl,
   sendVerificationEmail,
+  sendInvitationEmail,
 };

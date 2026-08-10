@@ -1,5 +1,5 @@
 import crypto from "crypto";
-
+import { sendInvitationEmail } from "./email.service.js";
 import config from "../config/env.config.js";
 import { findUserByEmail } from "../models/user.model.js";
 import { findWorkspaceById, sanitizeWorkspace } from "../models/workspace.model.js";
@@ -62,8 +62,7 @@ const buildPublicInvitation = (invitation, workspace) => ({
   respondedAt: invitation.respondedAt || null,
 });
 
-const createWorkspaceInvitation = async ({ workspaceId, inviterId, email, role }) => {
-  await ensureInvitationIndexes();
+const createWorkspaceInvitation = async ({ workspaceId, inviterId, inviterName, email, role }) => {  await ensureInvitationIndexes();
   await ensureWorkspaceMemberIndexes();
 
   const workspace = await assertWorkspaceOwner(workspaceId, inviterId);
@@ -109,13 +108,26 @@ const createWorkspaceInvitation = async ({ workspaceId, inviterId, email, role }
     invitedById: inviterId,
   };
 
-  const savedInvitation = await createInvitationDocument(invitationDocument);
+ const savedInvitation = await createInvitationDocument(invitationDocument);
+const inviteLink = createInvitationLink(rawToken);
 
-  return {
-    invitation: hydrateInvitation(savedInvitation),
-    inviteLink: createInvitationLink(rawToken),
-    workspace,
-  };
+try {
+  await sendInvitationEmail({
+    to: normalizedEmail,
+    inviterName,
+    workspaceTitle: workspace.title,
+    role,
+    inviteLink,
+  });
+} catch (error) {
+  // Invitation ban chuki hai — email fail hone par bhi block nahi karna
+}
+
+return {
+  invitation: hydrateInvitation(savedInvitation),
+  inviteLink,
+  workspace,
+};
 };
 
 const listWorkspaceInvitations = async (workspaceId, userId) => {
@@ -225,7 +237,7 @@ const acceptInvitation = async (token, user) => {
   });
 
   return {
-    invitation: hydrateInvitation(update),
+    invitation: hydrateInvitation(updated),
     workspace: sanitizeWorkspace(workspace),
   };
 };

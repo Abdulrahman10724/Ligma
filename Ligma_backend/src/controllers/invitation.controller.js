@@ -17,6 +17,8 @@ const createInvitationHandler = async (req, res, next) => {
     const result = await createWorkspaceInvitation({
       workspaceId: req.params.workspaceId,
       inviterId: req.user.id,
+        inviterName: req.user.name,
+
       ...req.body,
     });
 
