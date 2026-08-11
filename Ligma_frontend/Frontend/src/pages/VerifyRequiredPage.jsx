@@ -38,8 +38,7 @@ useEffect(() => {
       return;
     }
 
-    setFeedback("We couldn't send another verification email. Please try again shortly.");
-  };
+setFeedback(result.payload?.message || "We couldn't send another verification email. Please try again shortly.");  };
 
   const email = location.state?.email || user?.email || "your inbox";
 

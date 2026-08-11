@@ -178,9 +178,7 @@ export default function AcceptInvitationPage() {
           </div>
         ) : null}
 
-        <p className="mt-6 text-xs text-[color:var(--text-secondary)]">
-          Token: {token}
-        </p>
+     
       </div>
     </div>
   );

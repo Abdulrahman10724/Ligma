@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, Link2 } from "lucide-react";
-
+import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -41,14 +41,12 @@ export default function InviteMemberDialog({ workspaceId, open, onOpenChange, on
   ], []);
 
   const onSubmit = async (values) => {
-    if (!workspaceId) {
-      return;
-    }
-
-    const result = await dispatch(createWorkspaceInvitation({ workspaceId, payload: values }));
-    if (createWorkspaceInvitation.fulfilled.match(result)) {
-      onCreated?.();
-    }
+    if (!workspaceId) return;
+  const result = await dispatch(createWorkspaceInvitation({ workspaceId, payload: values }));
+  if (createWorkspaceInvitation.fulfilled.match(result)) {
+    toast.success("Invitation email sent successfully");
+    onCreated?.();
+  }
   };
 
   const copyInviteLink = async () => {
@@ -86,7 +84,7 @@ export default function InviteMemberDialog({ workspaceId, open, onOpenChange, on
 
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-secondary)]">Invitee email</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-secondary)]">Invite email</label>
             <Input placeholder="name@company.com" {...register("email")} disabled={saving} />
             {errors.email ? <p className="mt-1 text-xs text-[color:var(--danger)]">{errors.email.message}</p> : null}
           </div>
