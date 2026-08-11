@@ -6,6 +6,8 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
+import connectRedis from "./src/config/redis.config.js";
+
 import config from "./src/config/env.config.js";
 import connectDB from "./src/config/db.config.js";
 import errorHandler from "./src/middleware/error.middleware.js";
@@ -51,6 +53,16 @@ app.use(globalLimiter);
 const startServer = async () => {
   await connectDB();
   logger.info(`✅ Connected to MongoDB at ${config.MONGODB_URI.replace(/:[^:@]+@/, ":***@")}`);
+
+  // Redis: connection only (no features wired up yet — see redis.config.js).
+  // Startup does not hard-fail if Redis is briefly unavailable; it logs and
+  // continues, matching the app's existing "best-effort" style for
+  // non-critical infra (see e.g. socket emit try/catch blocks below).
+  try {
+    await connectRedis();
+  } catch (error) {
+    logger.error(`❌ Redis Connection Error: ${error.message}`);
+  }
 
   // Health check
   app.get("/", (req, res) =>

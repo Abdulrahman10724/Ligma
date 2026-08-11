@@ -1,0 +1,84 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────
+# LIGMA — Docker Compose
+#
+# Services:
+#   - backend  : Node/Express API + Socket.IO (connects to MongoDB
+#                Atlas, which stays external/uncontainerized, and to
+#                the Redis container below)
+#   - frontend : React/Vite app, built and served via nginx
+#   - redis    : Redis 7 with a persistent named volume + healthcheck
+#
+# MongoDB is intentionally NOT included here — the backend connects to
+# your existing MongoDB Atlas cluster via MONGODB_URI.
+# ─────────────────────────────────────────────────────────────────
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ligma_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - ligma-network
+
+  backend:
+    build:
+      context: ./Ligma_backend
+      dockerfile: Dockerfile
+    container_name: ligma_backend
+    restart: unless-stopped
+    env_file:
+      - ./Ligma_backend/.env
+    environment:
+      # Backend must reach Redis by its Compose service name, not localhost.
+      REDIS_URL: redis://redis:6379
+      PORT: "5000"
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ligma-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:5000/health', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./Ligma_frontend/Frontend
+      dockerfile: Dockerfile
+      args:
+        # Defaults already match the backend's published host port below;
+        # override only if you expose the backend on a different port.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api/v1}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:5000}
+    container_name: ligma_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+    networks:
+      - ligma-network
+
+networks:
+  ligma-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local

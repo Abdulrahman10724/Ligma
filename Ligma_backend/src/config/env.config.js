@@ -33,6 +33,10 @@ AUTH_RATE_LIMIT_MAX: z.string().transform((v) => parseInt(v, 10)).default("20"),
   // Gmail + Nodemailer (free email delivery)
   GMAIL_USER: z.string().optional().default(""),
   GMAIL_APP_PASSWORD: z.string().optional().default(""),
+  // Redis — connection only; no feature usage yet (see src/config/redis.config.js).
+  // Defaults to the Docker Compose service name "redis"; falls back to localhost
+  // for running the backend outside of Docker.
+  REDIS_URL: z.string().default("redis://localhost:6379"),
 });
 const parsed = envSchema.safeParse(process.env);
 

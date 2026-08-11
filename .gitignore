@@ -1,2 +1,6 @@
 .vercel
 Ligma_docs/
+# dotenv environment variables file
+.env
+.env.test
+.env.production
