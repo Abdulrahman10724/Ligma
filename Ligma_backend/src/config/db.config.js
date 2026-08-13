@@ -19,12 +19,6 @@ const connectDB = async () => {
     await db.command({ ping: 1 });
     logger.info("🔌 MongoDB connected successfully.");
 
-    process.once("SIGINT", async () => {
-      await client.close();
-      logger.info("🔌 MongoDB connection closed through app termination.");
-      process.exit(0);
-    });
-
     return db;
   } catch (error) {
     logger.error(`❌ MongoDB Connection Error: ${error.message}`);
@@ -42,6 +36,19 @@ const getDb = () => {
 
 const getCollection = (collectionName) => getDb().collection(collectionName);
 
-export { connectDB, getDb, getCollection };
+const closeDB = async () => {
+  if (!client) {
+    return;
+  }
+
+  const activeClient = client;
+  client = undefined;
+  db = undefined;
+
+  await activeClient.close();
+  logger.info("🔌 MongoDB connection closed through app termination.");
+};
+
+export { connectDB, getDb, getCollection, closeDB };
 
 export default connectDB;

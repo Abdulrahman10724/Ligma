@@ -6,13 +6,16 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
-import connectRedis from "./src/config/redis.config.js";
+import connectRedis, { closeRedis as closeRedisConnection } from "./src/config/redis.config.js";
+import { closeBullMQInfrastructure, ensureBullMQConnection } from "./src/config/bullmq.config.js";
 
 import config from "./src/config/env.config.js";
-import connectDB from "./src/config/db.config.js";
+import connectDB, { closeDB } from "./src/config/db.config.js";
 import errorHandler from "./src/middleware/error.middleware.js";
 import { initSocket } from "./src/socket/socket.service.js";
 import logger from "./src/utils/logger.util.js";
+import { enqueueInfrastructureCheckJob } from "./src/queues/infrastructure.queue.js";
+import "./src/workers/infrastructure.worker.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
 import invitationRoutes from "./src/routes/invitation.routes.js";
@@ -25,6 +28,7 @@ import chatRoutes from "./src/routes/chat.routes.js";
 
 const app = express();
 const server = http.createServer(app);
+let isShuttingDown = false;
 
 // Security & core middleware
 app.use(helmet());
@@ -52,7 +56,7 @@ app.use(globalLimiter);
 
 const startServer = async () => {
   await connectDB();
-  logger.info(`✅ Connected to MongoDB at ${config.MONGODB_URI.replace(/:[^:@]+@/, ":***@")}`);
+  logger.info(`✅ Connected to MongoDB at ${config.MONGODB_URI.replace(/:[^:@]+@/, ":***@")} `);
 
   // Redis: connection only (no features wired up yet — see redis.config.js).
   // Startup does not hard-fail if Redis is briefly unavailable; it logs and
@@ -63,6 +67,9 @@ const startServer = async () => {
   } catch (error) {
     logger.error(`❌ Redis Connection Error: ${error.message}`);
   }
+
+  await ensureBullMQConnection("producer");
+  await ensureBullMQConnection("worker");
 
   // Health check
   app.get("/", (req, res) =>
@@ -102,7 +109,37 @@ const startServer = async () => {
   server.listen(config.PORT, () => {
     logger.info(`🚀 Ligma backend running on port ${config.PORT} (${config.NODE_ENV})`);
   });
+
+  await enqueueInfrastructureCheckJob({ source: "startup" });
 };
+
+const shutdown = async (signal) => {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  logger.info(`🛑 Received ${signal}; starting graceful shutdown.`);
+
+  await new Promise((resolve) => server.close(resolve));
+
+  await Promise.allSettled([
+    closeBullMQInfrastructure(),
+    closeRedisConnection(),
+    closeDB(),
+  ]);
+
+  logger.info("✅ Graceful shutdown complete.");
+  process.exit(0);
+};
+
+process.once("SIGINT", () => {
+  void shutdown("SIGINT");
+});
+
+process.once("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});
 
 startServer().catch((error) => {
   logger.error("Failed to start server", { message: error?.message });

@@ -1,38 +1,69 @@
-// Minimal Redis connection module.
-//
-// IMPORTANT: this file intentionally does NOT implement any Redis-backed
-// features (Socket.IO adapter, caches, rate limiting, BullMQ, etc.). Its
-// only job is to establish and expose a single shared Redis client so the
-// backend can prove connectivity to the Redis container over the Docker
-// network. Feature work is out of scope for this change.
-
 import { createClient } from "redis";
 import config from "./env.config.js";
 import logger from "../utils/logger.util.js";
 
 let client;
+let connectPromise;
+
+const attachRedisEvents = (redisClient) => {
+  redisClient.on("error", (error) => {
+    logger.error(`❌ Redis client error: ${error.message}`);
+  });
+
+  redisClient.on("connect", () => {
+    logger.info("🔌 Redis client connecting...");
+  });
+
+  redisClient.on("ready", () => {
+    logger.info(`✅ Redis client ready at ${config.REDIS_URL}`);
+  });
+
+  redisClient.on("reconnecting", () => {
+    logger.warn("🔁 Redis client reconnecting...");
+  });
+
+  redisClient.on("end", () => {
+    logger.warn("🔌 Redis client connection ended.");
+  });
+};
+
+const createRedisClient = () => {
+  const redisClient = createClient({
+    url: config.REDIS_URL,
+    socket: {
+      connectTimeout: 10000,
+      reconnectStrategy: (retries) => Math.min(retries * 100, 2000),
+    },
+  });
+
+  attachRedisEvents(redisClient);
+  return redisClient;
+};
 
 const connectRedis = async () => {
   if (client && client.isOpen) {
     return client;
   }
 
-  client = createClient({ url: config.REDIS_URL });
+  if (!client) {
+    client = createRedisClient();
+  }
 
-  client.on("error", (error) => {
-    logger.error(`❌ Redis Client Error: ${error.message}`);
-  });
+  if (!connectPromise) {
+    connectPromise = client
+      .connect()
+      .then(async () => {
+        const pong = await client.ping();
+        logger.info(`🔌 Redis connected successfully (${pong}) at ${config.REDIS_URL}`);
+        return client;
+      })
+      .catch((error) => {
+        connectPromise = undefined;
+        throw error;
+      });
+  }
 
-  client.on("reconnecting", () => {
-    logger.warn("🔁 Redis reconnecting...");
-  });
-
-  await client.connect();
-
-  const pong = await client.ping();
-  logger.info(`🔌 Redis connected successfully (${pong}) at ${config.REDIS_URL}`);
-
-  return client;
+  return connectPromise;
 };
 
 const getRedisClient = () => {
@@ -42,6 +73,23 @@ const getRedisClient = () => {
   return client;
 };
 
-export { connectRedis, getRedisClient };
+const closeRedis = async () => {
+  if (!client) {
+    return;
+  }
+
+  const activeClient = client;
+  client = undefined;
+  connectPromise = undefined;
+
+  if (activeClient.isOpen) {
+    await activeClient.quit();
+    return;
+  }
+
+  activeClient.disconnect();
+};
+
+export { connectRedis, getRedisClient, closeRedis };
 
 export default connectRedis;

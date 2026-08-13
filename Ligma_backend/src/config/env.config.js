@@ -27,10 +27,10 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_WINDOW_MS: z.string().transform((v) => parseInt(v, 10)).default("900000"), // 15 min
 AUTH_RATE_LIMIT_MAX: z.string().transform((v) => parseInt(v, 10)).default("20"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
-  // RESEND is optional in non-production environments
-  RESEND_API_KEY: isProd ? z.string().min(1, "RESEND_API_KEY is required") : z.string().optional().default("") ,
   EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
-  // Gmail + Nodemailer (free email delivery)
+  RESEND_API_KEY: z.string().optional().default(""),
+  // Email delivery — Nodemailer + Gmail SMTP (App Password). This is the
+  // only email transport this project uses; Resend is not integrated.
   GMAIL_USER: z.string().optional().default(""),
   GMAIL_APP_PASSWORD: z.string().optional().default(""),
   // Redis — connection only; no feature usage yet (see src/config/redis.config.js).
