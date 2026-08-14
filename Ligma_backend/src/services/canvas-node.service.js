@@ -18,34 +18,13 @@ import {
   getWorkspaceRole,
   normalizeNodeAllowedUserIds,
 } from "./member.service.js";
-import { classifyNodeContent } from "./classification.service.js";
 import { appendEvent, EVENT_TYPES } from "./event-log.service.js";
-import * as taskService from "./task.service.js";
 import logger from "../utils/logger.util.js";
+import { getNodeText } from "../utils/node-text.util.js";
+import { enqueueClassificationJob } from "../queues/classification.queue.js";
+import { enqueueTaskJob } from "../queues/task.queue.js";
 
-// ── Text extraction — one map covers all current and future node types ────────
-// Add new node types here; the classification pipeline picks them up automatically.
-const NODE_TEXT_KEYS = {
-  sticky: "text",
-  text: "text",
-  rectangle: "label",
-  circle: "label",
-  arrow: "label",
-  diamond: "label",
-  triangle: "label",
-  line: "label",
-};
-
-/**
- * Extract the editable text from any node, regardless of type.
- * Returns an empty string for types with no text or no data.
- */
-function getNodeText(node) {
-  if (!node?.data) return "";
-  const key = NODE_TEXT_KEYS[node.type];
-  if (!key) return "";
-  return node.data[key] || "";
-}
+const toIsoString = (value) => (value ? new Date(value).toISOString() : null);
 
 const NODE_GEOMETRY_KEYS = new Set(["width", "height", "radius", "dx", "dy"]);
 
@@ -159,33 +138,18 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
     logger.warn("event logging failed on node create", error?.message || error);
   }
 
-  // classify and sync asynchronously — works for every node type
-  (async () => {
-    try {
-      const text = getNodeText(sanitized);
-      logger.info(`canvas.node.create: node=${sanitized.id} type=${sanitized.type} text='${String(text).slice(0, 200)}'`);
-      if (!text.trim()) {
-        logger.info(`canvas.node.create: skipping classification (empty text) for node=${sanitized.id}`);
-        return;
-      }
+  const text = getNodeText(sanitized);
+  if (text.trim()) {
+    void enqueueClassificationJob({
+      workspaceId,
+      nodeId: sanitized.id,
+      actorId: userId,
+      nodeUpdatedAt: toIsoString(sanitized.updatedAt),
+    }).catch((error) => {
+      logger.warn("classification job enqueue failed on node create", { message: error?.message, nodeId: sanitized.id });
+    });
+  }
 
-      const result = await classifyNodeContent(text);
-      logger.info(`canvas.node.create: classification result for node=${sanitized.id}: ${JSON.stringify(result)}`);
-      if (result?.classification || (result?.references && result.references.length)) {
-        await taskService.createTaskForNode(workspaceId, sanitized.id, {
-          title: result.title || text || "",
-          description: result.description || "",
-          type: result.classification || (result.references?.length ? "Reference" : "Action"),
-          metadata: { references: result.references || [], emails: result.emails || [] },
-        }, userId);
-        logger.info(`canvas.node.create: task created for node=${sanitized.id}`);
-      } else {
-        logger.info(`canvas.node.create: no task created for node=${sanitized.id} (no classification/references)`);
-      }
-    } catch (err) {
-      logger.warn("classification sync failed on node create", err?.message || err);
-    }
-  })();
   return sanitized;
 };
 
@@ -220,37 +184,21 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
     logger.warn("event logging failed on node update", error?.message || error);
   }
 
-  // Determine the correct text key for this node type
-  const textKey = NODE_TEXT_KEYS[existing.type];
-
-  // Only re-classify when the text field was explicitly sent AND actually changed.
-  // This skips drag/resize/color updates (they don't include the text field).
-  const previousText = textKey ? (existing.data?.[textKey] || "") : "";
-  const nextText = textKey ? (sanitized.data?.[textKey] || "") : "";
+  const previousText = getNodeText(existing);
+  const nextText = getNodeText(sanitized);
+  const textKey = existing.type ? (existing.type === "rectangle" || existing.type === "circle" || existing.type === "arrow" || existing.type === "diamond" || existing.type === "triangle" || existing.type === "line" ? "label" : "text") : null;
   const textFieldWasUpdated = payload.data && textKey && Object.prototype.hasOwnProperty.call(payload.data, textKey);
   const textActuallyChanged = textFieldWasUpdated && nextText !== previousText;
 
   if (textActuallyChanged) {
-    (async () => {
-      try {
-        logger.info(`canvas.node.update: node=${sanitized.id} type=${sanitized.type} prev='${String(previousText).slice(0, 200)}' next='${String(nextText).slice(0, 200)}'`);
-        const result = await classifyNodeContent(nextText);
-        logger.info(`canvas.node.update: classification result for node=${sanitized.id}: ${JSON.stringify(result)}`);
-        if (result?.classification || (result?.references && result.references.length)) {
-          await taskService.updateTaskForNode(workspaceId, sanitized.id, {
-            title: result.title || nextText || "",
-            description: result.description || "",
-            type: result.classification || (result.references?.length ? "Reference" : undefined),
-            metadata: { references: result.references || [], emails: result.emails || [] },
-          }, userId);
-          logger.info(`canvas.node.update: task updated/created for node=${sanitized.id}`);
-        } else {
-          logger.info(`canvas.node.update: no task created/updated for node=${sanitized.id}`);
-        }
-      } catch (err) {
-        logger.warn("classification sync failed on node update", err?.message || err);
-      }
-    })();
+    void enqueueClassificationJob({
+      workspaceId,
+      nodeId: sanitized.id,
+      actorId: userId,
+      nodeUpdatedAt: toIsoString(sanitized.updatedAt),
+    }).catch((error) => {
+      logger.warn("classification job enqueue failed on node update", { message: error?.message, nodeId: sanitized.id });
+    });
   }
 
   return sanitized;
@@ -286,14 +234,15 @@ const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
 
 
   await deleteNode(nodeId, workspaceId);
-  // remove linked task asynchronously
-  (async () => {
-    try {
-      await taskService.removeTaskForNode(workspaceId, nodeId, userId);
-    } catch (err) {
-      logger.warn("task removal failed on node delete", err?.message || err);
-    }
-  })();
+  void enqueueTaskJob({
+    workspaceId,
+    nodeId,
+    actorId: userId,
+    action: "delete",
+    nodeUpdatedAt: toIsoString(existing.updatedAt),
+  }).catch((error) => {
+    logger.warn("task delete job enqueue failed on node delete", { message: error?.message, nodeId });
+  });
 };
 
 const lockCanvasNode = async (workspaceId, userId, nodeId) => {

@@ -80,10 +80,10 @@ const listInvitationsByWorkspace = async (workspaceId, status) => {
 };
 
 const updateInvitationByTokenHash = async (tokenHash, updateDocument) =>
-  getInvitationsCollection().findOneAndUpdate({ tokenHash }, { $set: updateDocument }, { returnDocument: "after" });
+  getInvitationsCollection().findOneAndUpdate({ tokenHash }, { $set: updateDocument }, { returnDocument: "after", includeResultMetadata: false });
 
 const updateInvitationById = async (invitationId, updateDocument) =>
-  getInvitationsCollection().findOneAndUpdate({ _id: new ObjectId(invitationId) }, { $set: updateDocument }, { returnDocument: "after" });
+  getInvitationsCollection().findOneAndUpdate({ _id: new ObjectId(invitationId) }, { $set: updateDocument }, { returnDocument: "after", includeResultMetadata: false });
 
 const expirePendingInvitations = async () => {
   const now = new Date();

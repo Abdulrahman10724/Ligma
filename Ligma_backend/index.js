@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
 import connectRedis, { closeRedis as closeRedisConnection } from "./src/config/redis.config.js";
-import { closeBullMQInfrastructure, ensureBullMQConnection } from "./src/config/bullmq.config.js";
+import { closeBullMQInfrastructure, ensureBullMQConnection, getBullMQHealth } from "./src/config/bullmq.config.js";
 
 import config from "./src/config/env.config.js";
 import connectDB, { closeDB } from "./src/config/db.config.js";
@@ -16,6 +16,10 @@ import { initSocket } from "./src/socket/socket.service.js";
 import logger from "./src/utils/logger.util.js";
 import { enqueueInfrastructureCheckJob } from "./src/queues/infrastructure.queue.js";
 import "./src/workers/infrastructure.worker.js";
+import "./src/workers/classification.worker.js";
+import "./src/workers/task.worker.js";
+import "./src/workers/email.worker.js";
+import "./src/workers/audit.worker.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
 import invitationRoutes from "./src/routes/invitation.routes.js";
@@ -81,6 +85,13 @@ const startServer = async () => {
     })
   );
   app.get("/health", (req, res) => res.json({ success: true, status: "healthy" }));
+  app.get("/health/queues", (req, res) =>
+    res.json({
+      success: true,
+      status: "healthy",
+      bullmq: getBullMQHealth(),
+    })
+  );
 
   // Versioned API
   app.use("/api/v1/auth", authRoutes);

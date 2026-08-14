@@ -2,7 +2,7 @@ import axios from "axios";
 import config from "../config/env.config.js";
 import logger from "../utils/logger.util.js";
 
-const classifyWithOpenRouter = async (text) => {
+const classifyWithOpenRouter = async (text, { strict = false } = {}) => {
   // Short-circuit when no API key is configured (development mode)
   if (!config.OPENROUTER_API_KEY) return null;
 
@@ -35,15 +35,29 @@ const classifyWithOpenRouter = async (text) => {
 
     const choices = resp?.data?.choices || resp?.data?.output || null;
     const textOut = choices && choices[0] && (choices[0].message?.content || choices[0].text || "");
-    if (!textOut) return null;
+    if (!textOut) {
+      if (strict) {
+        throw new Error("OpenRouter returned an empty classification response");
+      }
+
+      return null;
+    }
 
     const cleaned = textOut.trim();
     if (/Action/i.test(cleaned)) return "Action";
     if (/Decision/i.test(cleaned)) return "Decision";
     if (/Information/i.test(cleaned)) return "Information";
+    if (strict) {
+      throw new Error(`OpenRouter returned an unsupported classification: ${cleaned}`);
+    }
+
     return null;
   } catch (err) {
-      logger.warn("AI classify failed", {
+    if (strict) {
+      throw err;
+    }
+
+    logger.warn("AI classify failed", {
     status: err.response?.status,
     data: err.response?.data,
     message: err.message,

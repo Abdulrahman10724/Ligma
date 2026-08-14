@@ -12,6 +12,20 @@ const connections = new Map();
 const queues = new Set();
 const workers = new Set();
 
+const DEFAULT_QUEUE_JOB_OPTIONS = {
+  attempts: 5,
+  backoff: {
+    type: "exponential",
+    delay: 2000,
+  },
+  removeOnComplete: 100,
+  removeOnFail: 1000,
+};
+
+const DEFAULT_WORKER_OPTIONS = {
+  concurrency: 1,
+};
+
 const createBullMQConnection = (role) => {
   const connection = new IORedis(config.REDIS_URL, {
     lazyConnect: true,
@@ -66,6 +80,30 @@ const ensureBullMQConnection = async (role) => {
   return connection;
 };
 
+const buildBullMQQueueOptions = (overrides = {}) => ({
+  connection: getBullMQConnection(REDIS_ROLES.producer),
+  defaultJobOptions: {
+    ...DEFAULT_QUEUE_JOB_OPTIONS,
+    ...(overrides.defaultJobOptions || {}),
+  },
+  ...overrides,
+});
+
+const buildBullMQWorkerOptions = (overrides = {}) => ({
+  connection: getBullMQConnection(REDIS_ROLES.worker),
+  ...DEFAULT_WORKER_OPTIONS,
+  ...overrides,
+});
+
+const getBullMQHealth = () => ({
+  connections: Array.from(connections.entries()).map(([role, connection]) => ({
+    role,
+    status: connection.status,
+  })),
+  queuesRegistered: queues.size,
+  workersRegistered: workers.size,
+});
+
 const closeBullMQInfrastructure = async () => {
   await Promise.allSettled(Array.from(workers, (worker) => worker.close()));
   await Promise.allSettled(Array.from(queues, (queue) => queue.close()));
@@ -86,7 +124,10 @@ const closeBullMQInfrastructure = async () => {
 };
 
 export {
+  buildBullMQQueueOptions,
+  buildBullMQWorkerOptions,
   REDIS_ROLES,
+  getBullMQHealth,
   closeBullMQInfrastructure,
   ensureBullMQConnection,
   getBullMQConnection,
@@ -95,7 +136,10 @@ export {
 };
 
 export default {
+  buildBullMQQueueOptions,
+  buildBullMQWorkerOptions,
   REDIS_ROLES,
+  getBullMQHealth,
   closeBullMQInfrastructure,
   ensureBullMQConnection,
   getBullMQConnection,

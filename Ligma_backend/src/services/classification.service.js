@@ -19,7 +19,7 @@ const parseTitleAndDescription = (text) => {
   return { title, description };
 };
 
-const classifyNodeContent = async (rawText) => {
+const classifyNodeContent = async (rawText, { strict = false } = {}) => {
   // References/emails are detected across the WHOLE text (title + description),
   // so a link anywhere in the node still produces a Reference entry —
   // this is independent of and additive to the title-based category below.
@@ -48,10 +48,14 @@ const classifyNodeContent = async (rawText) => {
   }
 
   try {
-    const cls = await classifyWithOpenRouter(titleForClassification);
+    const cls = await classifyWithOpenRouter(titleForClassification, { strict });
     logger.info(`classification.service: ai returned='${String(cls)}' (based on title only: '${titleForClassification}')`);
     return { classification: cls, references, emails, title, description };
   } catch (err) {
+    if (strict) {
+      throw err;
+    }
+
     logger.warn("classification failed", err?.message || err);
     return { classification: null, references, emails, title, description };
   }

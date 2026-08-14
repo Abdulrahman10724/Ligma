@@ -58,7 +58,7 @@ const updateTask = async (taskId, workspaceId, updateFields) => {
   const result = await getTasksCollection().findOneAndUpdate(
     { _id: new ObjectId(taskId), workspaceId: new ObjectId(workspaceId) },
     { $set: set },
-    { returnDocument: "after" }
+    { returnDocument: "after", includeResultMetadata: false }
   );
   return result;
 };

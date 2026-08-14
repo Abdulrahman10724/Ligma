@@ -13,7 +13,8 @@ import {
   markEmailVerified,
 } from "../models/user.model.js";
 import { signAccessToken } from "../utils/jwt.util.js";
-import { sendVerificationEmail } from "./email.service.js";
+import { enqueueEmailJob } from "../queues/email.queue.js";
+import logger from "../utils/logger.util.js";
 
 const buildAuthPayload = (user) => {
   const safeUser = sanitizeUser(user);
@@ -44,9 +45,15 @@ const register = async ({ name, email, password }) => {
   await setEmailVerificationToken(user._id, verificationToken);
 
   try {
-    await sendVerificationEmail({ to: user.email, name: user.name, token: verificationToken });
+    await enqueueEmailJob({
+      type: "verification",
+      to: user.email,
+      name: user.name,
+      token: verificationToken,
+      userId: user._id.toString(),
+    });
   } catch (error) {
-    // Keep registration successful even if email delivery fails; UI can provide resend.
+    logger.warn("verification email job enqueue failed", { message: error?.message, userId: user._id.toString() });
   }
 
   return buildAuthPayload(user);
@@ -132,9 +139,15 @@ const resendVerificationEmail = async ({ userId }) => {
   await setEmailVerificationToken(user._id, verificationToken);
 
   try {
-    await sendVerificationEmail({ to: user.email, name: user.name, token: verificationToken });
+    await enqueueEmailJob({
+      type: "verification",
+      to: user.email,
+      name: user.name,
+      token: verificationToken,
+      userId: user._id.toString(),
+    });
   } catch (error) {
-    throw error;
+    logger.warn("verification email job enqueue failed", { message: error?.message, userId: user._id.toString() });
   }
 
   return { success: true };

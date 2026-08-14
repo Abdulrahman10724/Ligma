@@ -76,7 +76,7 @@ const updateWorkspaceById = async (workspaceId, ownerId, updateFields) => {
   const result = await getWorkspacesCollection().findOneAndUpdate(
     { _id: new ObjectId(workspaceId), ownerId: new ObjectId(ownerId) },
     { $set: updateDocument },
-    { returnDocument: "after" }
+    { returnDocument: "after", includeResultMetadata: false }
   );
 
   return result;

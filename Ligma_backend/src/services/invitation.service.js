@@ -1,6 +1,7 @@
 import crypto from "crypto";
-import { sendInvitationEmail } from "./email.service.js";
+import { enqueueEmailJob } from "../queues/email.queue.js";
 import config from "../config/env.config.js";
+import logger from "../utils/logger.util.js";
 import { findUserByEmail } from "../models/user.model.js";
 import { findWorkspaceById, sanitizeWorkspace } from "../models/workspace.model.js";
 import {
@@ -112,15 +113,17 @@ const createWorkspaceInvitation = async ({ workspaceId, inviterId, inviterName, 
 const inviteLink = createInvitationLink(rawToken);
 
 try {
-  await sendInvitationEmail({
+  await enqueueEmailJob({
+    type: "invitation",
     to: normalizedEmail,
     inviterName,
     workspaceTitle: workspace.title,
     role,
     inviteLink,
+    invitationId: savedInvitation._id.toString(),
   });
 } catch (error) {
-  // Invitation ban chuki hai — email fail hone par bhi block nahi karna
+  logger.warn("invitation email job enqueue failed", { message: error?.message, invitationId: savedInvitation._id.toString() });
 }
 
 return {

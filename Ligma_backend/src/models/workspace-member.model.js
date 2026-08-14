@@ -59,7 +59,7 @@ const updateMemberRole = async (workspaceId, userId, newRole) => {
   return getWorkspaceMembersCollection().findOneAndUpdate(
     { workspaceId: new ObjectId(workspaceId), userId: new ObjectId(userId) },
     { $set: { role: newRole, updatedAt: now } },
-    { returnDocument: "after" }
+    { returnDocument: "after", includeResultMetadata: false }
   );
 };
 

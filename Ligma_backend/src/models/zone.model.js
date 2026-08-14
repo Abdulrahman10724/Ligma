@@ -74,7 +74,7 @@ const updateZone = async (zoneId, workspaceId, fields) => {
   return getZonesCollection().findOneAndUpdate(
     { _id: new ObjectId(zoneId), workspaceId: new ObjectId(workspaceId) },
     { $set: set },
-    { returnDocument: "after" }
+    { returnDocument: "after", includeResultMetadata: false }
   );
 };
 

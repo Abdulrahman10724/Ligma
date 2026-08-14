@@ -30,6 +30,13 @@ const sanitizeCanvasNode = (node) => {
     allowedUserIds: Array.isArray(node.allowedUserIds)
       ? [...new Set(node.allowedUserIds.map((id) => id.toString()))]
       : [...DEFAULT_ALLOWED_USER_IDS],
+    aiClassification: node.aiClassification || null,
+    aiClassifiedAt: node.aiClassifiedAt ? new Date(node.aiClassifiedAt).toISOString() : null,
+    aiClassificationJobId: node.aiClassificationJobId || null,
+    aiClassificationTitle: node.aiClassificationTitle || "",
+    aiClassificationDescription: node.aiClassificationDescription || "",
+    aiReferences: Array.isArray(node.aiReferences) ? [...node.aiReferences] : [],
+    aiEmails: Array.isArray(node.aiEmails) ? [...node.aiEmails] : [],
   };
 };
 
@@ -54,6 +61,13 @@ const createNode = async ({ workspaceId, createdById, type, x, y, data, parentNo
     lockedBy: null,
     lockedAt: null,
     allowedUserIds: [...DEFAULT_ALLOWED_USER_IDS],
+    aiClassification: null,
+    aiClassifiedAt: null,
+    aiClassificationJobId: null,
+    aiClassificationTitle: "",
+    aiClassificationDescription: "",
+    aiReferences: [],
+    aiEmails: [],
     parentNodeId: parentNodeId ? new ObjectId(parentNodeId) : null,
     createdAt: now,
     updatedAt: now,
@@ -68,7 +82,7 @@ const updateNode = async (nodeId, workspaceId, updateFields) => {
   return getCanvasNodesCollection().findOneAndUpdate(
     { _id: new ObjectId(nodeId), workspaceId: new ObjectId(workspaceId) },
     { $set: { ...updateFields, updatedAt: now } },
-    { returnDocument: "after" }
+    { returnDocument: "after", includeResultMetadata: false }
   );
 };
 
