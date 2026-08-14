@@ -1,10 +1,18 @@
 import { Worker } from "bullmq";
+import { toIsoString } from "../jobs/job.utils.js";
 
-import { buildBullMQWorkerOptions, registerBullMQWorker } from "../config/bullmq.config.js";
+import {
+  buildBullMQWorkerOptions,
+  registerBullMQWorker,
+} from "../config/bullmq.config.js";
 import { classificationJobSchema } from "../jobs/classification.job.js";
 import { CLASSIFICATION_QUEUE_NAME } from "../queues/classification.queue.js";
 import { enqueueTaskJob } from "../queues/task.queue.js";
-import { findNodeById, sanitizeCanvasNode, updateNode } from "../models/canvas-node.model.js";
+import {
+  findNodeById,
+  sanitizeCanvasNode,
+  updateNode,
+} from "../models/canvas-node.model.js";
 import { appendEvent, EVENT_TYPES } from "../services/event-log.service.js";
 import { classifyNodeContent } from "../services/classification.service.js";
 import { getNodeText } from "../utils/node-text.util.js";
@@ -14,17 +22,23 @@ const CLASSIFICATION_WORKER_NAME = "classification-worker";
 
 let classificationWorker;
 
-const buildTaskPayloadFromClassification = (node, classificationResult, actorId) => ({
+const buildTaskPayloadFromClassification = (
+  node,
+  classificationResult,
+  actorId,
+) => ({
   workspaceId: node.workspaceId,
   nodeId: node.id,
   actorId,
   action: "upsert",
-  nodeUpdatedAt: node.updatedAt,
+  nodeUpdatedAt: toIsoString(node.updatedAt),
   classification: classificationResult.classification,
   taskData: {
     title: classificationResult.title || getNodeText(node) || "",
     description: classificationResult.description || "",
-    type: classificationResult.classification || (classificationResult.references?.length ? "Reference" : "Action"),
+    type:
+      classificationResult.classification ||
+      (classificationResult.references?.length ? "Reference" : "Action"),
     metadata: {
       references: classificationResult.references || [],
       emails: classificationResult.emails || [],
@@ -37,7 +51,10 @@ const processClassificationJob = async (job) => {
   const node = await findNodeById(payload.nodeId);
 
   if (!node) {
-    logger.warn("classification.worker: node missing before processing", { jobId: job.id, nodeId: payload.nodeId });
+    logger.warn("classification.worker: node missing before processing", {
+      jobId: job.id,
+      nodeId: payload.nodeId,
+    });
     return { skipped: "missing-node" };
   }
 
@@ -46,9 +63,18 @@ const processClassificationJob = async (job) => {
   }
 
   const currentNode = sanitizeCanvasNode(node);
-  const currentNodeUpdatedAt = currentNode.updatedAt ? new Date(currentNode.updatedAt).toISOString() : null;
-  if (payload.nodeUpdatedAt && currentNodeUpdatedAt && currentNodeUpdatedAt !== payload.nodeUpdatedAt) {
-    logger.info("classification.worker: stale job skipped", { jobId: job.id, nodeId: payload.nodeId });
+  const currentNodeUpdatedAt = currentNode.updatedAt
+    ? new Date(currentNode.updatedAt).toISOString()
+    : null;
+  if (
+    payload.nodeUpdatedAt &&
+    currentNodeUpdatedAt &&
+    currentNodeUpdatedAt !== payload.nodeUpdatedAt
+  ) {
+    logger.info("classification.worker: stale job skipped", {
+      jobId: job.id,
+      nodeId: payload.nodeId,
+    });
     return { skipped: "stale-node-revision" };
   }
 
@@ -56,19 +82,28 @@ const processClassificationJob = async (job) => {
   const text = getNodeText(currentNode);
 
   if (!text.trim()) {
-    logger.info("classification.worker: empty text skipped", { jobId: job.id, nodeId: payload.nodeId });
+    logger.info("classification.worker: empty text skipped", {
+      jobId: job.id,
+      nodeId: payload.nodeId,
+    });
     return { skipped: "empty-text" };
   }
 
   if (currentNode.aiClassificationJobId === job.id && existingClassification) {
-    logger.info("classification.worker: duplicate job rehydrated", { jobId: job.id, nodeId: payload.nodeId });
-    if (existingClassification === "Action" || existingClassification === "Reference") {
+    logger.info("classification.worker: duplicate job rehydrated", {
+      jobId: job.id,
+      nodeId: payload.nodeId,
+    });
+    if (
+      existingClassification === "Action" ||
+      existingClassification === "Reference"
+    ) {
       await enqueueTaskJob({
         workspaceId: payload.workspaceId,
         nodeId: payload.nodeId,
         actorId: payload.actorId,
         action: "upsert",
-        nodeUpdatedAt: currentNode.updatedAt,
+        nodeUpdatedAt: toIsoString(currentNode.updatedAt),
         classification: existingClassification,
         taskData: {
           title: currentNode.aiClassificationTitle || text,
@@ -85,11 +120,18 @@ const processClassificationJob = async (job) => {
     return { skipped: "already-processed" };
   }
 
-  const classificationResult = await classifyNodeContent(text, { strict: true });
-  const classification = classificationResult.classification || (classificationResult.references?.length ? "Reference" : null);
+  const classificationResult = await classifyNodeContent(text, {
+    strict: true,
+  });
+  const classification =
+    classificationResult.classification ||
+    (classificationResult.references?.length ? "Reference" : null);
 
   if (!classification) {
-    logger.info("classification.worker: no classification returned", { jobId: job.id, nodeId: payload.nodeId });
+    logger.info("classification.worker: no classification returned", {
+      jobId: job.id,
+      nodeId: payload.nodeId,
+    });
     return { skipped: "no-classification" };
   }
 
@@ -105,7 +147,9 @@ const processClassificationJob = async (job) => {
   });
 
   const sanitized = sanitizeCanvasNode(updatedNode);
-  const updatedAt = sanitized.updatedAt ? new Date(sanitized.updatedAt).toISOString() : null;
+  const updatedAt = sanitized.updatedAt
+    ? new Date(sanitized.updatedAt).toISOString()
+    : null;
 
   await appendEvent({
     workspaceId: payload.workspaceId,
@@ -122,10 +166,19 @@ const processClassificationJob = async (job) => {
   });
 
   if (classification === "Action" || classification === "Reference") {
-    await enqueueTaskJob(buildTaskPayloadFromClassification(sanitized, classificationResult, payload.actorId));
+    await enqueueTaskJob(
+      buildTaskPayloadFromClassification(
+        sanitized,
+        classificationResult,
+        payload.actorId,
+      ),
+    );
   }
 
-  logger.info(`classification.worker: processed node ${payload.nodeId}`, { jobId: job.id, classification });
+  logger.info(`classification.worker: processed node ${payload.nodeId}`, {
+    jobId: job.id,
+    classification,
+  });
   return { classification };
 };
 
@@ -135,17 +188,27 @@ const createClassificationWorker = () => {
   }
 
   classificationWorker = registerBullMQWorker(
-    new Worker(CLASSIFICATION_QUEUE_NAME, processClassificationJob, buildBullMQWorkerOptions())
+    new Worker(
+      CLASSIFICATION_QUEUE_NAME,
+      processClassificationJob,
+      buildBullMQWorkerOptions(),
+    ),
   );
 
   classificationWorker.on("active", (job) => {
-    logger.info("classification.worker: started", { jobId: job.id, nodeId: job.data?.nodeId });
+    logger.info("classification.worker: started", {
+      jobId: job.id,
+      nodeId: job.data?.nodeId,
+    });
   });
   classificationWorker.on("completed", (job) => {
     logger.info("classification.worker: completed", { jobId: job.id });
   });
   classificationWorker.on("failed", (job, error) => {
-    logger.error("classification.worker: failed", { jobId: job?.id, message: error?.message });
+    logger.error("classification.worker: failed", {
+      jobId: job?.id,
+      message: error?.message,
+    });
   });
   classificationWorker.on("error", (error) => {
     logger.error(`classification.worker: error ${error.message}`);
