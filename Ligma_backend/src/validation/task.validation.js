@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+
+const idParamsSchema = z.object({
+  params: z.object({
+    workspaceId: z.string().regex(/^[a-f0-9]{24}$/i, "Workspace ID is invalid"),
+    taskId: z.string().regex(/^[a-f0-9]{24}$/i, "Task ID is invalid").optional(),
+  }),
+});
+
+
 const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
@@ -15,6 +24,5 @@ const updateTaskSchema = createTaskSchema.partial();
 
 const statusSchema = z.object({ status: z.enum(["To Do", "In Progress", "Completed"]) });
 
-export { createTaskSchema, updateTaskSchema, statusSchema };
-
-export default { createTaskSchema, updateTaskSchema, statusSchema };
+export { createTaskSchema, updateTaskSchema, statusSchema, idParamsSchema };
+export default { createTaskSchema, updateTaskSchema, statusSchema, idParamsSchema };

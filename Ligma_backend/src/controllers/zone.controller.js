@@ -1,6 +1,6 @@
 import { sendSuccess, sendError } from "../utils/api-response.util.js";
 import * as zoneService from "../services/zone.service.js";
-import { createZoneSchema, updateZoneSchema } from "../validation/zone.validation.js";
+import { createZoneSchema, updateZoneSchema, deleteZoneSchema } from "../validation/zone.validation.js";
 
 const listZonesHandler = async (req, res, next) => {
   try {
@@ -51,6 +51,7 @@ const updateZoneHandler = async (req, res, next) => {
 
 const deleteZoneHandler = async (req, res, next) => {
   try {
+    deleteZoneSchema.parse({ params: req.params });
     await zoneService.deleteZone(
       req.params.workspaceId,
       req.params.zoneId,
@@ -58,6 +59,9 @@ const deleteZoneHandler = async (req, res, next) => {
     );
     return sendSuccess(res, 200, "Zone deleted");
   } catch (error) {
+    if (error?.issues) {
+      return sendError(res, 400, "Invalid request", error.issues);
+    }
     return next(error);
   }
 };

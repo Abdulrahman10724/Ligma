@@ -9,6 +9,11 @@ import { findZonesByWorkspace, sanitizeZone } from "../models/zone.model.js";
 const zonesCache = new Map(); // workspaceId -> { zones: [{...}], ts: timestamp }
 const CACHE_TTL_MS = 4000;
 
+// Ligma_backend/src/services/zone-presence.service.js
+// (add near top, after CACHE_TTL_MS)
+
+const MAX_CACHE_ENTRIES = 500;
+
 const getCachedZones = async (workspaceId) => {
   const cached = zonesCache.get(workspaceId);
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
@@ -17,9 +22,17 @@ const getCachedZones = async (workspaceId) => {
   const raw = await findZonesByWorkspace(workspaceId);
   const zones = raw.map(sanitizeZone);
   zonesCache.set(workspaceId, { zones, ts: Date.now() });
+
+  // Cheap unbounded-growth guard: if too many distinct workspaces have been
+  // cached, drop the oldest entries rather than let the Map grow forever.
+  if (zonesCache.size > MAX_CACHE_ENTRIES) {
+    const entries = [...zonesCache.entries()].sort((a, b) => a[1].ts - b[1].ts);
+    const toRemove = entries.slice(0, zonesCache.size - MAX_CACHE_ENTRIES);
+    for (const [key] of toRemove) zonesCache.delete(key);
+  }
+
   return zones;
 };
-
 // workspaceId → Map<zoneId, Map<userId, userInfo>>
 const zonePresence = new Map();
 
