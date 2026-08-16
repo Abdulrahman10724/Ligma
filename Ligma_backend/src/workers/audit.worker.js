@@ -22,8 +22,7 @@ const createAuditWorker = () => {
     return auditWorker;
   }
 
-  auditWorker = registerBullMQWorker(new Worker(AUDIT_QUEUE_NAME, processAuditJob, buildBullMQWorkerOptions()));
-
+  auditWorker = registerBullMQWorker(new Worker(AUDIT_QUEUE_NAME, processAuditJob, buildBullMQWorkerOptions("audit")));
   auditWorker.on("active", (job) => logger.info("audit.worker: started", { jobId: job.id, eventType: job.data?.eventType }));
   auditWorker.on("completed", (job) => logger.info("audit.worker: completed", { jobId: job.id }));
   auditWorker.on("failed", (job, error) => logger.error("audit.worker: failed", { jobId: job?.id, message: error?.message }));

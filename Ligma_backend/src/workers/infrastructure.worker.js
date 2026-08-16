@@ -29,8 +29,8 @@ const createInfrastructureWorker = () => {
         };
       },
       {
-        connection: getBullMQConnection("worker"),
-        concurrency: 1,
+         connection: getBullMQConnection("worker-infrastructure"),
+      concurrency: 1,
       }
     )
   );

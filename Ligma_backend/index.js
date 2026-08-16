@@ -6,7 +6,6 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
-import connectRedis, { closeRedis as closeRedisConnection } from "./src/config/redis.config.js";
 import { closeBullMQInfrastructure, ensureBullMQConnection, getBullMQHealth } from "./src/config/bullmq.config.js";
 
 import config from "./src/config/env.config.js";
@@ -15,11 +14,6 @@ import errorHandler from "./src/middleware/error.middleware.js";
 import { initSocket } from "./src/socket/socket.service.js";
 import logger from "./src/utils/logger.util.js";
 import { enqueueInfrastructureCheckJob } from "./src/queues/infrastructure.queue.js";
-import "./src/workers/infrastructure.worker.js";
-import "./src/workers/classification.worker.js";
-import "./src/workers/task.worker.js";
-import "./src/workers/email.worker.js";
-import "./src/workers/audit.worker.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
 import invitationRoutes from "./src/routes/invitation.routes.js";
@@ -58,22 +52,41 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
+// Tracks whether background job processing (BullMQ/Redis) is available.
+// The API still serves requests without it — only async side-effects
+// (classification, task upsert, email, infra check) are skipped.
+let backgroundJobsEnabled = false;
+
 const startServer = async () => {
   await connectDB();
   logger.info(`✅ Connected to MongoDB at ${config.MONGODB_URI.replace(/:[^:@]+@/, ":***@")} `);
 
-  // Redis: connection only (no features wired up yet — see redis.config.js).
-  // Startup does not hard-fail if Redis is briefly unavailable; it logs and
-  // continues, matching the app's existing "best-effort" style for
-  // non-critical infra (see e.g. socket emit try/catch blocks below).
+  // BullMQ/Redis: best-effort. If Redis is unreachable, the connection now
+  // gives up after a bounded number of retries (see bullmq.config.js)
+  // instead of hanging startServer() forever. The API still comes up;
+  // background job features are simply disabled.
   try {
-    await connectRedis();
-  } catch (error) {
-    logger.error(`❌ Redis Connection Error: ${error.message}`);
-  }
+    await ensureBullMQConnection("producer");
+    await ensureBullMQConnection("worker");
+    backgroundJobsEnabled = true;
 
-  await ensureBullMQConnection("producer");
-  await ensureBullMQConnection("worker");
+    // Workers are only imported (and thus only start consuming jobs) AFTER
+    // Mongo + Redis are both confirmed up. Importing them at module-load
+    // time (top of file) meant a leftover queued job could be picked up
+    // and call getCollection() before connectDB() had run, causing an
+    // avoidable "Database not initialized" failure on cold start.
+    await import("./src/workers/classification.worker.js");
+    await import("./src/workers/task.worker.js");
+    await import("./src/workers/email.worker.js");
+    await import("./src/workers/infrastructure.worker.js");
+    // NOTE: audit.worker.js / audit.queue.js intentionally NOT started —
+    // nothing in the codebase calls enqueueAuditEventJob(); all event
+    // logging goes through appendEvent() directly. Starting this worker
+    // was just an idle Redis connection with no producer. Re-enable only
+    // if audit events are actually wired to go through the queue.
+  } catch (error) {
+    logger.error(`❌ BullMQ/Redis unavailable at startup — background jobs disabled: ${error.message}`);
+  }
 
   // Health check
   app.get("/", (req, res) =>
@@ -88,7 +101,8 @@ const startServer = async () => {
   app.get("/health/queues", (req, res) =>
     res.json({
       success: true,
-      status: "healthy",
+      status: backgroundJobsEnabled ? "healthy" : "degraded",
+      backgroundJobsEnabled,
       bullmq: getBullMQHealth(),
     })
   );
@@ -121,7 +135,11 @@ const startServer = async () => {
     logger.info(`🚀 Ligma backend running on port ${config.PORT} (${config.NODE_ENV})`);
   });
 
-  await enqueueInfrastructureCheckJob({ source: "startup" });
+  if (backgroundJobsEnabled) {
+    await enqueueInfrastructureCheckJob({ source: "startup" }).catch((error) => {
+      logger.warn("infrastructure check job enqueue failed", { message: error?.message });
+    });
+  }
 };
 
 const shutdown = async (signal) => {
@@ -136,7 +154,6 @@ const shutdown = async (signal) => {
 
   await Promise.allSettled([
     closeBullMQInfrastructure(),
-    closeRedisConnection(),
     closeDB(),
   ]);
 

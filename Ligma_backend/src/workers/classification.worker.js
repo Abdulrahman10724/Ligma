@@ -186,12 +186,12 @@ const createClassificationWorker = () => {
   }
 
   classificationWorker = registerBullMQWorker(
-    new Worker(
-      CLASSIFICATION_QUEUE_NAME,
-      processClassificationJob,
-      buildBullMQWorkerOptions(),
-    ),
-  );
+  new Worker(
+    CLASSIFICATION_QUEUE_NAME,
+    processClassificationJob,
+    buildBullMQWorkerOptions("classification"),
+  ),
+);
 
   classificationWorker.on("active", (job) => {
     logger.info("classification.worker: started", {

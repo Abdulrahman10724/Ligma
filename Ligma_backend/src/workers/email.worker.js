@@ -35,8 +35,7 @@ const createEmailWorker = () => {
     return emailWorker;
   }
 
-  emailWorker = registerBullMQWorker(new Worker(EMAIL_QUEUE_NAME, processEmailJob, buildBullMQWorkerOptions()));
-
+emailWorker = registerBullMQWorker(new Worker(EMAIL_QUEUE_NAME, processEmailJob, buildBullMQWorkerOptions("email")));
   emailWorker.on("active", (job) => logger.info("email.worker: started", { jobId: job.id, type: job.data?.type }));
   emailWorker.on("completed", (job) => logger.info("email.worker: completed", { jobId: job.id }));
   emailWorker.on("failed", (job, error) => logger.error("email.worker: failed", { jobId: job?.id, message: error?.message }));

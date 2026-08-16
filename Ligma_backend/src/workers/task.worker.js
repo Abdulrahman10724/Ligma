@@ -47,8 +47,7 @@ const createTaskWorker = () => {
     return taskWorker;
   }
 
-  taskWorker = registerBullMQWorker(new Worker(TASK_QUEUE_NAME, processTaskJob, buildBullMQWorkerOptions()));
-
+taskWorker = registerBullMQWorker(new Worker(TASK_QUEUE_NAME, processTaskJob, buildBullMQWorkerOptions("task")));
   taskWorker.on("active", (job) => logger.info("task.worker: started", { jobId: job.id, action: job.data?.action }));
   taskWorker.on("completed", (job) => logger.info("task.worker: completed", { jobId: job.id }));
   taskWorker.on("failed", (job, error) => logger.error("task.worker: failed", { jobId: job?.id, message: error?.message }));
