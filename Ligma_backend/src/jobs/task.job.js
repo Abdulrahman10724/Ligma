@@ -17,7 +17,7 @@ const taskPayloadSchema = z.object({
 const taskJobSchema = z.object({
   workspaceId: z.string().regex(/^[a-f0-9]{24}$/i, "Workspace ID is invalid"),
   nodeId: z.string().regex(/^[a-f0-9]{24}$/i, "Node ID is invalid"),
-  actorId: z.string().regex(/^[a-f0-9]{24}$/i, "User ID is invalid").nullable().optional(),
+  actorId: z.string().regex(/^[a-f0-9]{24}$/i, "User ID is invalid"),
   action: z.enum(["upsert", "delete"]),
   nodeUpdatedAt: z.string().datetime().optional().nullable(),
   classification: z.enum(["Action", "Decision", "Information", "Reference"]).nullable().optional(),

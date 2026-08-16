@@ -11,7 +11,12 @@
 //   * chat:channel-created / chat:channel-deleted → broadcasts
 
 import { assertWorkspaceAccess, assertWorkspaceEditAccess } from "../services/member.service.js";
-import { findZoneAtPoint, updateUserZonePresence, removeUserFromAllZones } from "../services/zone-presence.service.js";
+import {
+  findZoneAtPoint,
+  updateUserZonePresence,
+  removeUserFromAllZones,
+  getZonePresenceSnapshot,
+} from "../services/zone-presence.service.js";
 import { assertChannelVisible } from "../services/channel.service.js";
 import { findChannelById } from "../models/channel.model.js";
 let _io = null;
@@ -24,7 +29,7 @@ const roomForChannel = (workspaceId, channelId) => `workspace:${workspaceId}:cha
 
 const emitZonePresence = (workspaceId) => {
   if (!_io) return;
-  const presence = (require("../services/zone-presence.service.js")).getZonePresenceSnapshot(workspaceId);
+  const presence = getZonePresenceSnapshot(workspaceId);
   _io.to(`workspace:${workspaceId}`).emit("zone:presence", { workspaceId, presence });
 };
 

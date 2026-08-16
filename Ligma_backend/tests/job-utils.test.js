@@ -30,12 +30,10 @@ test("buildClassificationJobId reproduces the real Phase 16.2 crash scenario saf
   const payload = {
     workspaceId: "64f1a2b3c4d5e6f7a8b9c0d1",
     nodeId: "64f1a2b3c4d5e6f7a8b9c0d2",
-    nodeUpdatedAt: "2026-01-01T12:00:00.000Z", // the exact kind of value that broke it
+    nodeUpdatedAt: "2026-01-01T12:00:00.000Z",
   };
   const id = buildClassificationJobId(payload);
   assert.equal(id.includes(":"), false);
   assert.match(id, /^[A-Za-z0-9_.-]+$/);
-
-  // Same payload twice => same id (idempotency preserved)
   assert.equal(id, buildClassificationJobId(payload));
 });
