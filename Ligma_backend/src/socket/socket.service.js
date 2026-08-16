@@ -1,3 +1,5 @@
+import { createAdapter } from "@socket.io/redis-adapter";
+import IORedis from "ioredis";
 import { Server } from "socket.io";
 import config from "../config/env.config.js";
 import { findUserById, sanitizeUser } from "../models/user.model.js";
@@ -84,6 +86,15 @@ const initSocket = (server) => {
     },
     pingTimeout: 60000,
   });
+   // Redis adapter: without this, presence/cursor/typing/zone events only
+  // reach clients connected to the SAME backend instance. Required for any
+  // horizontal scaling (multiple containers/replicas behind a load balancer).
+  const pubClient = new IORedis(config.REDIS_URL);
+  const subClient = pubClient.duplicate();
+  pubClient.on("error", (err) => logger.error(`Socket.IO Redis pub error: ${err.message}`));
+  subClient.on("error", (err) => logger.error(`Socket.IO Redis sub error: ${err.message}`));
+  io.adapter(createAdapter(pubClient, subClient));
+
 
   io.use(async (socket, next) => {
     try {

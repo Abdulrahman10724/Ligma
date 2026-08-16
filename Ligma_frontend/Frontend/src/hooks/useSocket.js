@@ -8,11 +8,17 @@ const joinedWorkspaces = new Set();
 const workspaceRefCounts = new Map(); // workspaceId -> number of active consumers
 
 const ensureSocket = () => {
+  const token = localStorage.getItem("ligma_token");
+
   if (socketInstance) {
+    // Token badal gaya (login/logout/account switch) — socket ko naye
+    // token ke saath reconnect karo instead of stale identity use karte rehna.
+    if (socketInstance.auth.token !== token) {
+      socketInstance.auth.token = token;
+      socketInstance.disconnect().connect();
+    }
     return socketInstance;
   }
-
-  const token = localStorage.getItem("ligma_token");
 
   socketInstance = io(socketUrl, {
     auth: { token },

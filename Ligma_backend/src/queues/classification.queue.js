@@ -9,7 +9,20 @@ let classificationQueue;
 
 const getClassificationQueue = () => {
   if (!classificationQueue) {
-    classificationQueue = registerBullMQQueue(new Queue(CLASSIFICATION_QUEUE_NAME, buildBullMQQueueOptions()));
+    classificationQueue = registerBullMQQueue(
+      new Queue(
+        CLASSIFICATION_QUEUE_NAME,
+        buildBullMQQueueOptions({
+          // AI classification failures (missing/invalid API key, OpenRouter
+          // down) shouldn't retry 5x with long exponential backoff per
+          // keystroke — that floods the queue and delays real jobs.
+          defaultJobOptions: {
+            attempts: 2,
+            backoff: { type: "exponential", delay: 5000 },
+          },
+        })
+      )
+    );
   }
 
   return classificationQueue;

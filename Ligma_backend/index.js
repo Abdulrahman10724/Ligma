@@ -57,36 +57,50 @@ app.use(globalLimiter);
 // (classification, task upsert, email, infra check) are skipped.
 let backgroundJobsEnabled = false;
 
-const startServer = async () => {
-  await connectDB();
-  logger.info(`✅ Connected to MongoDB at ${config.MONGODB_URI.replace(/:[^:@]+@/, ":***@")} `);
-
-  // BullMQ/Redis: best-effort. If Redis is unreachable, the connection now
-  // gives up after a bounded number of retries (see bullmq.config.js)
-  // instead of hanging startServer() forever. The API still comes up;
-  // background job features are simply disabled.
+const startBackgroundJobs = async () => {
   try {
     await ensureBullMQConnection("producer");
     await ensureBullMQConnection("worker");
     backgroundJobsEnabled = true;
 
-    // Workers are only imported (and thus only start consuming jobs) AFTER
-    // Mongo + Redis are both confirmed up. Importing them at module-load
-    // time (top of file) meant a leftover queued job could be picked up
-    // and call getCollection() before connectDB() had run, causing an
-    // avoidable "Database not initialized" failure on cold start.
     await import("./src/workers/classification.worker.js");
     await import("./src/workers/task.worker.js");
     await import("./src/workers/email.worker.js");
     await import("./src/workers/infrastructure.worker.js");
-    // NOTE: audit.worker.js / audit.queue.js intentionally NOT started —
-    // nothing in the codebase calls enqueueAuditEventJob(); all event
-    // logging goes through appendEvent() directly. Starting this worker
-    // was just an idle Redis connection with no producer. Re-enable only
-    // if audit events are actually wired to go through the queue.
+
+    logger.info("✅ Background job workers started.");
+    return true;
   } catch (error) {
-    logger.error(`❌ BullMQ/Redis unavailable at startup — background jobs disabled: ${error.message}`);
+    logger.error(`❌ BullMQ/Redis unavailable — background jobs disabled: ${error.message}`);
+    return false;
   }
+};
+
+const startServer = async () => {
+  await connectDB();
+  logger.info(`✅ Connected to MongoDB at ${config.MONGODB_URI.replace(/:[^:@]+@/, ":***@")} `);
+
+  const started = await startBackgroundJobs();
+
+  // If Redis wasn't ready at boot, keep retrying in the background every
+  // 15s until it comes up — instead of permanently disabling job
+  // processing for the process lifetime.
+  if (!started) {
+    const retryTimer = setInterval(async () => {
+      if (backgroundJobsEnabled) {
+        clearInterval(retryTimer);
+        return;
+      }
+      const ok = await startBackgroundJobs();
+      if (ok) clearInterval(retryTimer);
+    }, 15000);
+    retryTimer.unref(); // don't block process exit
+  }
+  // BullMQ/Redis: best-effort. If Redis is unreachable, the connection now
+  // gives up after a bounded number of retries (see bullmq.config.js)
+  // instead of hanging startServer() forever. The API still comes up;
+  // background job features are simply disabled.
+ 
 
   // Health check
   app.get("/", (req, res) =>
