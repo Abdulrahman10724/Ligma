@@ -94,10 +94,7 @@ const processClassificationJob = async (job) => {
       jobId: job.id,
       nodeId: payload.nodeId,
     });
-    if (
-      existingClassification === "Action" ||
-      existingClassification === "Reference"
-    ) {
+     if (existingClassification) {
       await enqueueTaskJob({
         workspaceId: payload.workspaceId,
         nodeId: payload.nodeId,
@@ -165,7 +162,7 @@ const processClassificationJob = async (job) => {
     },
   });
 
-  if (classification === "Action" || classification === "Reference") {
+ if (classification) {
     await enqueueTaskJob(
       buildTaskPayloadFromClassification(
         sanitized,
@@ -174,6 +171,7 @@ const processClassificationJob = async (job) => {
       ),
     );
   }
+  
 
   logger.info(`classification.worker: processed node ${payload.nodeId}`, {
     jobId: job.id,
