@@ -61,16 +61,17 @@ const startBackgroundJobs = async () => {
   try {
     await ensureBullMQConnection("producer");
     await ensureBullMQConnection("worker");
-    backgroundJobsEnabled = true;
-
+    
     await import("./src/workers/classification.worker.js");
     await import("./src/workers/task.worker.js");
     await import("./src/workers/email.worker.js");
     await import("./src/workers/infrastructure.worker.js");
-
+    
+    backgroundJobsEnabled = true;
     logger.info("✅ Background job workers started.");
     return true;
   } catch (error) {
+    backgroundJobsEnabled = true;
     logger.error(`❌ BullMQ/Redis unavailable — background jobs disabled: ${error.message}`);
     return false;
   }

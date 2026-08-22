@@ -21,20 +21,22 @@ export default function WorkspaceNavigationPanel({
     <>
       {/* Tablet overlay backdrop */}
       <div
-        className="fixed inset-0 z-30 cursor-pointer bg-black/20 lg:hidden"
+        className="fixed inset-0 z-20 cursor-pointer bg-black/20 lg:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Panel */}
-      <div
+            <div
         className={[
-          "flex flex-col h-full bg-[color:var(--surface)] border-r border-[color:var(--border)]",
+          "flex flex-col h-full w-[216px] bg-[color:var(--surface)] border-r border-[color:var(--border)]",
           "panel-slide-in",
-          /* Desktop: in-flow. Tablet: absolute overlay over the rail */
-          "absolute lg:relative z-40 lg:z-auto",
+          /* Mobile/tablet: absolute overlay positioned right after the 60px rail.
+             Desktop (lg): fills its animated 216px parent slot exactly — no rail
+             underneath it anymore, so there's nothing to overlap. */
+          "absolute left-[60px] top-0 bottom-0 z-40",
+          "lg:absolute lg:left-0 lg:z-auto",
         ].join(" ")}
-        style={{ width: "216px", left: "60px", top: 0, bottom: 0 }}
       >
         {/* Header */}
         <div className="h-[60px] flex items-center justify-between px-4 border-b border-[color:var(--border)] shrink-0">

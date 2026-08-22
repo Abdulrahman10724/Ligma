@@ -100,20 +100,42 @@ export default function WorkspacePage() {
   return (
     <div className="flex h-screen bg-[color:var(--background)] text-[color:var(--foreground)] overflow-hidden">
 
-      {/* ── Navigation Rail (always visible, 60px) ────────────────────────── */}
-      <WorkspaceNavigationRail
-        navigation={navigation}
-        isExpanded={isNavExpanded}
-        onToggle={handleToggleNav}
-      />
+      {/* ── Navigation: single animated slot — rail OR panel, never both ─── */}
+      <div
+        className="relative hidden shrink-0 transition-[width] duration-200 ease-in-out lg:block"
+        style={{ width: isNavExpanded ? "216px" : "60px" }}
+      >
+        {isNavExpanded ? (
+          <WorkspaceNavigationPanel
+            navigation={navigation}
+            workspaceName={activeWorkspace?.title}
+            onClose={handleCloseNav}
+          />
+        ) : (
+          <WorkspaceNavigationRail
+            navigation={navigation}
+            isExpanded={isNavExpanded}
+            onToggle={handleToggleNav}
+          />
+        )}
+      </div>
 
-      {/* ── Expandable Navigation Panel (216px, overlay on tablet) ───────── */}
-      {isNavExpanded && (
-        <WorkspaceNavigationPanel
+      {/* ── Mobile/tablet: rail always visible, panel overlays on top ────── */}
+      <div className="lg:hidden">
+        <WorkspaceNavigationRail
           navigation={navigation}
-          workspaceName={activeWorkspace?.title}
-          onClose={handleCloseNav}
+          isExpanded={isNavExpanded}
+          onToggle={handleToggleNav}
         />
+      </div>
+      {isNavExpanded && (
+        <div className="lg:hidden">
+          <WorkspaceNavigationPanel
+            navigation={navigation}
+            workspaceName={activeWorkspace?.title}
+            onClose={handleCloseNav}
+          />
+        </div>
       )}
 
       {/* ── Main Content Area ─────────────────────────────────────────────── */}

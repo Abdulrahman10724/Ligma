@@ -1,8 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ChevronDown, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import PresenceZoneCard from "@/components/presence/PresenceZoneCard";
 import PresenceZoneEditor from "@/components/presence/PresenceZoneEditor";
 import {
@@ -79,19 +90,25 @@ function CanvasPresenceLayer({
     viewportRef.current = viewport;
   }, [viewport]);
 
-  useEffect(() => () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     previewZonesRef.current = previewZones;
   }, [previewZones]);
 
   const zoneList = useMemo(
-    () => zones.map((zone) => (previewZones[zone.id] ? { ...zone, ...previewZones[zone.id] } : zone)),
-    [previewZones, zones]
+    () =>
+      zones.map((zone) =>
+        previewZones[zone.id] ? { ...zone, ...previewZones[zone.id] } : zone,
+      ),
+    [previewZones, zones],
   );
 
   const zonePresenceMap = useMemo(() => {
@@ -103,30 +120,44 @@ function CanvasPresenceLayer({
           email: member.email,
           role: member.isOwner ? "Lead" : member.role,
         },
-      ])
+      ]),
     );
 
     return zoneList.reduce((acc, zone) => {
       acc[zone.id] = presenceUsers
         .map((presence) => {
-          const point = presence.userId === currentUser?.id ? localCursor : remoteCursors[presence.userId];
+          const point =
+            presence.userId === currentUser?.id
+              ? localCursor
+              : remoteCursors[presence.userId];
           if (!isPointInsideZone(point, zone)) return null;
           const meta = membersByUserId.get(presence.userId);
           return {
             ...presence,
             name: meta?.name || presence.name,
             email: meta?.email || presence.email,
-            role: meta?.role || (presence.userId === currentUser?.id ? currentUserRole : null),
+            role:
+              meta?.role ||
+              (presence.userId === currentUser?.id ? currentUserRole : null),
           };
         })
         .filter(Boolean);
       return acc;
     }, {});
-  }, [currentUser?.id, currentUserRole, localCursor, members, presenceUsers, remoteCursors, zoneList]);
+  }, [
+    currentUser?.id,
+    currentUserRole,
+    localCursor,
+    members,
+    presenceUsers,
+    remoteCursors,
+    zoneList,
+  ]);
 
   const openCreateZone = useCallback(() => {
     const centerX = (-viewport.x + dimensions.width / 2) / viewport.scale - 160;
-    const centerY = (-viewport.y + dimensions.height / 2) / viewport.scale - 110;
+    const centerY =
+      (-viewport.y + dimensions.height / 2) / viewport.scale - 110;
     setEditorDraft({
       ...DEFAULT_ZONE_DRAFT,
       x: centerX,
@@ -136,7 +167,13 @@ function CanvasPresenceLayer({
       collapsed: false,
     });
     setIsEditorOpen(true);
-  }, [dimensions.height, dimensions.width, viewport.scale, viewport.x, viewport.y]);
+  }, [
+    dimensions.height,
+    dimensions.width,
+    viewport.scale,
+    viewport.x,
+    viewport.y,
+  ]);
 
   const openEditZone = useCallback((zone) => {
     setSelectedZoneId(zone.id);
@@ -173,7 +210,7 @@ function CanvasPresenceLayer({
 
       animationFrameRef.current = requestAnimationFrame(step);
     },
-    [onViewportChange]
+    [onViewportChange],
   );
 
   const focusZone = useCallback(
@@ -185,12 +222,16 @@ function CanvasPresenceLayer({
 
       setSelectedZoneId(zone.id);
       animateViewportTo({
-        x: dimensions.width / 2 - (zone.x + zone.width / 2) * viewportRef.current.scale,
-        y: dimensions.height / 2 - (zone.y + zone.height / 2) * viewportRef.current.scale,
+        x:
+          dimensions.width / 2 -
+          (zone.x + zone.width / 2) * viewportRef.current.scale,
+        y:
+          dimensions.height / 2 -
+          (zone.y + zone.height / 2) * viewportRef.current.scale,
         scale: viewportRef.current.scale,
       });
     },
-    [animateViewportTo, dimensions.height, dimensions.width]
+    [animateViewportTo, dimensions.height, dimensions.width],
   );
 
   const persistZone = useCallback(
@@ -198,7 +239,12 @@ function CanvasPresenceLayer({
       const payload = buildZonePayload(zone);
 
       // Guard against invalid numbers so a failed request never silently reverts the drag
-      if (!Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !Number.isFinite(payload.width) || !Number.isFinite(payload.height)) {
+      if (
+        !Number.isFinite(payload.x) ||
+        !Number.isFinite(payload.y) ||
+        !Number.isFinite(payload.width) ||
+        !Number.isFinite(payload.height)
+      ) {
         console.warn("Skipping zone persist — invalid geometry", payload);
         return null;
       }
@@ -218,7 +264,7 @@ function CanvasPresenceLayer({
         return result;
       }
     },
-    [createZone, updateZone]
+    [createZone, updateZone],
   );
 
   // Attach drag/resize listeners ONCE on mount. Reading previewZones or
@@ -249,7 +295,12 @@ function CanvasPresenceLayer({
       if (interaction.type === "resize") {
         setPreviewZones((current) => ({
           ...current,
-          [interaction.zone.id]: buildResizePreview(interaction.zone, interaction.handle, deltaX, deltaY),
+          [interaction.zone.id]: buildResizePreview(
+            interaction.zone,
+            interaction.handle,
+            deltaX,
+            deltaY,
+          ),
         }));
       }
     };
@@ -294,7 +345,9 @@ function CanvasPresenceLayer({
             isSelected={selectedZoneId === zone.id}
             activeUsers={zonePresenceMap[zone.id] || []}
             canManage={canManage}
-            onSelect={(zoneId) => focusZone(zoneList.find((z) => z.id === zoneId) || null)}
+            onSelect={(zoneId) =>
+              focusZone(zoneList.find((z) => z.id === zoneId) || null)
+            }
             onDragStart={(event, currentZone) => {
               if (!canManage) return;
               event.preventDefault();
@@ -319,7 +372,10 @@ function CanvasPresenceLayer({
               };
             }}
             onToggleCollapse={async (zoneToToggle) => {
-              await persistZone({ ...zoneToToggle, collapsed: !zoneToToggle.collapsed });
+              await persistZone({
+                ...zoneToToggle,
+                collapsed: !zoneToToggle.collapsed,
+              });
             }}
             onEdit={openEditZone}
             onDelete={async (zoneToDelete) => {
@@ -343,42 +399,82 @@ function CanvasPresenceLayer({
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Presence zones</p>
-            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{zoneList.length} active overlays</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">
+              Presence zones
+            </p>
+            <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+              {zoneList.length} active overlays
+            </p>
           </div>
         </div>
 
-        {canManage ? (
-          <div className="pointer-events-auto flex flex-col gap-2">
+        <div className="pointer-events-auto flex flex-col gap-2">
           <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-2xl border-[color:var(--border)] bg-[color:var(--bg-surface)]/92 px-4 text-[color:var(--text-primary)] shadow-lg backdrop-blur-xl hover:bg-[color:var(--bg-surface)]"
-                  />
-                }
-              >
-                <span className="max-w-40 truncate">{selectedZoneId ? (zoneList.find((zone) => zone.id === selectedZoneId)?.name || "All Zones") : "All Zones"}</span>
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={8} className="w-56 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-1.5 shadow-2xl">
-                <DropdownMenuItem onSelect={() => focusZone(null)} className="rounded-xl px-3 py-2 text-sm">
-                  All Zones
-                </DropdownMenuItem>
-                {zoneList.map((zone) => (
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="cursor-pointer rounded-2xl border-[color:var(--border)] bg-[color:var(--bg-surface)]/92 px-4 text-[color:var(--text-primary)] shadow-lg backdrop-blur-xl hover:bg-[color:var(--bg-surface)]"
+                />
+              }
+            >
+              <span className="max-w-40 truncate">
+                {selectedZoneId
+                  ? zoneList.find((zone) => zone.id === selectedZoneId)?.name ||
+                    "All Zones"
+                  : "All Zones"}
+              </span>
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              sideOffset={8}
+              className="w-56 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-surface)] p-1.5 shadow-2xl"
+            >
+                            <DropdownMenuItem onClick={() => focusZone(null)} className="cursor-pointer rounded-xl px-3 py-2 text-sm">
+                All Zones
+              </DropdownMenuItem>
+              {zoneList.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-[color:var(--text-secondary)]">No zones yet</div>
+              ) : (
+                zoneList.map((zone) => (
+                  <DropdownMenuItem
+                    key={zone.id}
+                    onClick={() => focusZone(zone)}
+                    className="cursor-pointer rounded-xl px-3 py-2 text-sm"
+                  >
+                    <span
+                      className="mr-2 h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: zone.color }}
+                    />
+                    {zone.name}
+                  </DropdownMenuItem>
+                ))
+              )}
+              {zoneList.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-[color:var(--text-secondary)]">
+                  No zones yet
+                </div>
+              ) : (
+                zoneList.map((zone) => (
                   <DropdownMenuItem
                     key={zone.id}
                     onSelect={() => focusZone(zone)}
-                    className="rounded-xl px-3 py-2 text-sm"
+                    className="cursor-pointer rounded-xl px-3 py-2 text-sm"
                   >
+                    <span
+                      className="mr-2 h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: zone.color }}
+                    />
                     {zone.name}
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
+          {canManage ? (
             <Button
               type="button"
               onClick={openCreateZone}
@@ -386,8 +482,8 @@ function CanvasPresenceLayer({
             >
               <Plus className="mr-2 h-4 w-4" /> New zone
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <PresenceZoneEditor

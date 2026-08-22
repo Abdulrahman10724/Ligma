@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { LogOut } from "lucide-react";
-import { BrandLockup } from "../ui/BrandMark";
-
+import BrandMark from "../ui/BrandMark";
 /**
  * WorkspaceNavigationRail — slim 60px icon-only navigation rail.
  *
@@ -18,12 +17,11 @@ export default function WorkspaceNavigationRail({
 }) {
   return (
     <div
-      className="relative z-30 flex flex-col h-full"
+      className="relative z-50 flex flex-col h-full"
       style={{ width: "60px", flexShrink: 0 }}
     >
       {/* Rail container */}
       <div className="flex flex-col h-full bg-[color:var(--surface)] border-r border-[color:var(--border)]">
-
         {/* Brand mark + collapse toggle */}
         <button
           type="button"
@@ -32,11 +30,14 @@ export default function WorkspaceNavigationRail({
           aria-label={isExpanded ? "Collapse navigation" : "Expand navigation"}
           className="h-[60px] w-full flex cursor-pointer items-center justify-center border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)] transition-colors duration-150 shrink-0 text-[color:var(--primary)]"
         >
-          <BrandLockup size="sm" showMark={true} className="text-[color:var(--primary)]" />
+          <BrandMark size="sm" className="text-[color:var(--primary)]" />{" "}
         </button>
 
         {/* Navigation items */}
-        <nav className="flex-1 flex flex-col items-center py-2 gap-0.5" aria-label="Workspace navigation">
+        <nav
+          className="flex-1 flex flex-col items-center py-2 gap-0.5"
+          aria-label="Workspace navigation"
+        >
           {navigation.map(({ name, href, icon: Icon }) => (
             <NavLink
               key={name}
@@ -54,7 +55,9 @@ export default function WorkspaceNavigationRail({
             >
               {({ isActive }) => (
                 <>
-                  <Icon className={`w-5 h-5 ${isActive ? "stroke-[2.2]" : "stroke-[1.8]"}`} />
+                  <Icon
+                    className={`w-5 h-5 ${isActive ? "stroke-[2.2]" : "stroke-[1.8]"}`}
+                  />
                   <span className="nav-tooltip">{name}</span>
                 </>
               )}

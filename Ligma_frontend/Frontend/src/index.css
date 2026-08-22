@@ -382,7 +382,8 @@ body {
   pointer-events: none;
   opacity: 0;
   transition: opacity 120ms ease;
-  z-index: 60;
+  z-index: 10 0;
+
 }
 .nav-rail-item:hover .nav-tooltip {
   opacity: 1;

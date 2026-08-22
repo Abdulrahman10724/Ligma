@@ -8,6 +8,29 @@ const URL_RE = /(https?:\/\/[^\s"'<>]+)|(www\.[^\s"'<>]+\.[^\s"'<>]+)/g;
 
 function extractUrls(text = "") {
   return [...new Set((text.match(URL_RE) || []))];
+} 
+
+// normalize URL for dedup comparison only (strip protocol, www, trailing slash, lowercase)
+function normalizeUrlKey(url) {
+  return String(url || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
+function dedupeUrls(urls) {
+  const seen = new Set();
+  const result = [];
+  for (const url of urls) {
+    const key = normalizeUrlKey(url);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      result.push(url);
+    }
+  }
+  return result;
 }
 
 function toHref(url) {
@@ -36,8 +59,7 @@ export const ReferenceItem = memo(function ReferenceItem({ task }) {
   // URLs from backend Regex pipeline stored in metadata
   const metaRefs = (task.metadata?.references || []).filter(Boolean);
   // Merge, dedup
-  const allUrls = [...new Set([...contentUrls, ...metaRefs])];
-
+  const allUrls = dedupeUrls([...contentUrls, ...metaRefs]);
   return (
     <motion.div
       layout
