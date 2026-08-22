@@ -35,6 +35,7 @@ const sanitizeWorkspace = (workspace) => {
     ...workspace,
     id: workspace._id ? workspace._id.toString() : workspace.id,
     ownerId: workspace.ownerId ? workspace.ownerId.toString() : workspace.ownerId,
+    hidden: Boolean(workspace.hidden),
   };
 };
 
@@ -73,6 +74,12 @@ const updateWorkspaceById = async (workspaceId, ownerId, updateFields) => {
     updatedAt: now,
   };
 
+  const deleteWorkspaceById = async (workspaceId, ownerId) =>
+  getWorkspacesCollection().deleteOne({
+    _id: new ObjectId(workspaceId),
+    ownerId: new ObjectId(ownerId),
+  });
+
   const result = await getWorkspacesCollection().findOneAndUpdate(
     { _id: new ObjectId(workspaceId), ownerId: new ObjectId(ownerId) },
     { $set: updateDocument },
@@ -91,6 +98,7 @@ export {
   findWorkspacesByIds,
   createWorkspace,
   updateWorkspaceById,
+  deleteWorkspaceById,
 };
 
 export default {
@@ -102,4 +110,5 @@ export default {
   findWorkspacesByIds,
   createWorkspace,
   updateWorkspaceById,
+  deleteWorkspaceById,
 };

@@ -6,11 +6,12 @@ import {
   findWorkspacesByOwner,
   sanitizeWorkspace,
   updateWorkspaceById,
+  deleteWorkspaceById,
 } from "../models/workspace.model.js";
 import { findMembershipsForUser } from "../models/workspace-member.model.js";
 import { seedChannelsForWorkspace } from "./channel.service.js";
 
-const listUserWorkspaces = async (ownerId) => {
+const listUserWorkspaces = async (ownerId, { includeHidden = false } = {}) => {
   await ensureWorkspaceIndexes();
 
   const [ownedWorkspaces, memberships] = await Promise.all([
@@ -40,13 +41,15 @@ const listUserWorkspaces = async (ownerId) => {
     });
   }
 
-  return Array.from(workspacesById.values()).sort((left, right) => {
+   const all = Array.from(workspacesById.values());
+  const visible = includeHidden ? all : all.filter((workspace) => !workspace.hidden);
+
+  return visible.sort((left, right) => {
     const leftDate = new Date(left.updatedAt || left.createdAt || 0).getTime();
     const rightDate = new Date(right.updatedAt || right.createdAt || 0).getTime();
     return rightDate - leftDate;
   });
 };
-
 const getWorkspace = async (workspaceId, ownerId) => {
   const workspace = await findWorkspaceById(workspaceId);
 
@@ -109,11 +112,51 @@ const updateUserWorkspace = async (workspaceId, ownerId, payload) => {
   return sanitizeWorkspace(workspace);
 };
 
-export { listUserWorkspaces, getWorkspace, createUserWorkspace, updateUserWorkspace };
+const deleteUserWorkspace = async (workspaceId, ownerId, confirmTitle) => {
+  const workspace = await findWorkspaceById(workspaceId);
+
+  if (!workspace || workspace.ownerId.toString() !== ownerId) {
+    const error = new Error("Workspace not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if ((confirmTitle || "").trim() !== workspace.title) {
+    const error = new Error("Workspace name confirmation does not match");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const result = await deleteWorkspaceById(workspaceId, ownerId);
+  if (!result.deletedCount) {
+    const error = new Error("Workspace not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return { success: true };
+};
+
+const setWorkspaceHidden = async (workspaceId, ownerId, hidden) => {
+  const workspace = await findWorkspaceById(workspaceId);
+
+  if (!workspace || workspace.ownerId.toString() !== ownerId) {
+    const error = new Error("Workspace not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const updated = await updateWorkspaceById(workspaceId, ownerId, { hidden });
+  return sanitizeWorkspace(updated);
+};
+
+export { listUserWorkspaces, getWorkspace, createUserWorkspace, updateUserWorkspace, deleteUserWorkspace, setWorkspaceHidden };
 
 export default {
   listUserWorkspaces,
   getWorkspace,
   createUserWorkspace,
   updateUserWorkspace,
+  deleteUserWorkspace,
+  setWorkspaceHidden,
 };

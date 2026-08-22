@@ -4,8 +4,10 @@ import workspaceService from "../services/workspace.service";
 
 const initialState = {
   list: [],
+  hiddenList: [],
   activeWorkspace: null,
   loading: false,
+  hiddenLoading: false,
   saving: false,
   error: null,
 };
@@ -39,6 +41,41 @@ export const updateWorkspace = createAsyncThunk("workspace/update", async ({ wor
     return await workspaceService.update(workspaceId, payload);
   } catch (error) {
     return rejectWithValue(error?.message || "Unable to update workspace");
+  }
+});
+
+export const fetchHiddenWorkspaces = createAsyncThunk("workspace/fetchHidden", async (_, { rejectWithValue }) => {
+  try {
+    return await workspaceService.listHidden();
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to load hidden workspaces");
+  }
+});
+
+export const deleteWorkspace = createAsyncThunk("workspace/delete", async ({ workspaceId, confirmTitle }, { rejectWithValue }) => {
+  try {
+    await workspaceService.remove(workspaceId, confirmTitle);
+    return workspaceId;
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to delete workspace");
+  }
+});
+
+export const hideWorkspace = createAsyncThunk("workspace/hide", async (workspaceId, { rejectWithValue }) => {
+  try {
+    const response = await workspaceService.hide(workspaceId);
+    return { workspaceId, workspace: response?.data?.workspace };
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to hide workspace");
+  }
+});
+
+export const unhideWorkspace = createAsyncThunk("workspace/unhide", async (workspaceId, { rejectWithValue }) => {
+  try {
+    const response = await workspaceService.unhide(workspaceId);
+    return { workspaceId, workspace: response?.data?.workspace };
+  } catch (error) {
+    return rejectWithValue(error?.message || "Unable to unhide workspace");
   }
 });
 
@@ -105,9 +142,50 @@ const workspaceSlice = createSlice({
           state.list = state.list.map((item) => (item.id === workspace.id ? workspace : item));
         }
       })
-      .addCase(updateWorkspace.rejected, (state, action) => {
+          .addCase(updateWorkspace.rejected, (state, action) => {
         state.saving = false;
         state.error = action.payload || "Unable to update workspace";
+      })
+      .addCase(fetchHiddenWorkspaces.pending, (state) => {
+        state.hiddenLoading = true;
+      })
+      .addCase(fetchHiddenWorkspaces.fulfilled, (state, action) => {
+        state.hiddenLoading = false;
+        state.hiddenList = action.payload?.data?.workspaces || [];
+      })
+      .addCase(fetchHiddenWorkspaces.rejected, (state) => {
+        state.hiddenLoading = false;
+      })
+      .addCase(deleteWorkspace.fulfilled, (state, action) => {
+        const workspaceId = action.payload;
+        state.list = state.list.filter((item) => item.id !== workspaceId);
+        state.hiddenList = state.hiddenList.filter((item) => item.id !== workspaceId);
+        if (state.activeWorkspace?.id === workspaceId) {
+          state.activeWorkspace = null;
+        }
+      })
+      .addCase(deleteWorkspace.rejected, (state, action) => {
+        state.error = action.payload || "Unable to delete workspace";
+      })
+      .addCase(hideWorkspace.fulfilled, (state, action) => {
+        const { workspaceId, workspace } = action.payload;
+        state.list = state.list.filter((item) => item.id !== workspaceId);
+        if (workspace && !state.hiddenList.some((item) => item.id === workspace.id)) {
+          state.hiddenList = [workspace, ...state.hiddenList];
+        }
+      })
+      .addCase(hideWorkspace.rejected, (state, action) => {
+        state.error = action.payload || "Unable to hide workspace";
+      })
+      .addCase(unhideWorkspace.fulfilled, (state, action) => {
+        const { workspaceId, workspace } = action.payload;
+        state.hiddenList = state.hiddenList.filter((item) => item.id !== workspaceId);
+        if (workspace && !state.list.some((item) => item.id === workspace.id)) {
+          state.list = [workspace, ...state.list];
+        }
+      })
+      .addCase(unhideWorkspace.rejected, (state, action) => {
+        state.error = action.payload || "Unable to unhide workspace";
       });
   },
 });

@@ -27,10 +27,20 @@ const workspaceIdSchema = z.object({
   }),
 });
 
-export { createWorkspaceSchema, updateWorkspaceSchema, workspaceIdSchema };
+const deleteWorkspaceSchema = z.object({
+  params: z.object({
+    workspaceId: workspaceIdSchemaValue,
+  }),
+  body: z.object({
+    confirmTitle: z.string().trim().min(1, "Please type the workspace name to confirm"),
+  }),
+});
+
+export { createWorkspaceSchema, updateWorkspaceSchema, workspaceIdSchema, deleteWorkspaceSchema };
 
 export default {
   createWorkspaceSchema,
   updateWorkspaceSchema,
   workspaceIdSchema,
+  deleteWorkspaceSchema,
 };

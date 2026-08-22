@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { EyeOff, Trash2 } from "lucide-react";
+import DeleteWorkspaceDialog from "../components/workspace/DeleteWorkspaceDialog";
+import HideWorkspaceDialog from "../components/workspace/HideWorkspaceDialog";
 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -22,11 +25,14 @@ const schema = z.object({
 
 export default function SettingsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { activeWorkspace, saving, loading, error } = useSelector((state) => state.workspace);
   const { list: invitations, loading: invitationLoading, error: invitationError } = useSelector((state) => state.invitations);
   const { user } = useSelector((state) => state.auth);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [hideOpen, setHideOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -149,8 +155,62 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {canManageInvitations && activeWorkspace ? (
+        <div className="max-w-2xl mt-6 rounded-2xl border border-[color:var(--danger)]/30 bg-[color:var(--bg-surface)] overflow-hidden">
+          <div className="p-6 border-b border-[color:var(--danger)]/20">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-[color:var(--danger)]">Danger zone</h3>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-5 border-b border-[color:var(--border)]">
+            <div>
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">Hide this workspace</p>
+              <p className="text-xs text-[color:var(--text-secondary)] mt-0.5">
+                Removes it from your dashboard. Nothing is deleted — unhide anytime.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => setHideOpen(true)} className="gap-1.5 shrink-0">
+              <EyeOff className="w-3.5 h-3.5" /> Hide
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-5">
+            <div>
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">Delete this workspace</p>
+              <p className="text-xs text-[color:var(--text-secondary)] mt-0.5">
+                Permanently deletes the workspace and everything in it. Cannot be undone.
+              </p>
+            </div>
+            <Button variant="destructive" onClick={() => setDeleteOpen(true)} className="gap-1.5 shrink-0">
+              <Trash2 className="w-3.5 h-3.5" /> Delete
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {canManageInvitations ? (
         <InviteMemberDialog workspaceId={id} open={inviteOpen} onOpenChange={setInviteOpen} onCreated={() => dispatch(fetchWorkspaceInvitations(id))} />
+      ) : null}
+
+      {activeWorkspace ? (
+        <>
+          <HideWorkspaceDialog
+            workspace={activeWorkspace}
+            open={hideOpen}
+            onOpenChange={(v) => {
+              setHideOpen(v);
+              if (!v) navigate("/dashboard");
+            }}
+            mode="hide"
+          />
+          <DeleteWorkspaceDialog
+            workspace={activeWorkspace}
+            open={deleteOpen}
+            onOpenChange={(v) => {
+              setDeleteOpen(v);
+              if (!v) navigate("/dashboard");
+            }}
+          />
+        </>
       ) : null}
     </div>
   );

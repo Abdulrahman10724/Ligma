@@ -1,7 +1,18 @@
-import React from "react";
-import { ArrowRight, CalendarDays } from "lucide-react";
+import React, { useState } from "react";
+import { ArrowRight, CalendarDays, Trash2, EyeOff } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
+import DeleteWorkspaceDialog from "./DeleteWorkspaceDialog";
+import HideWorkspaceDialog from "./HideWorkspaceDialog";
 
-export default function WorkspaceCard({ workspace, onClick }) {
+export default function WorkspaceCard({ workspace, onClick, canManage = false }) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [hideOpen, setHideOpen] = useState(false);
+
   const initials = (workspace.title || "W")
     .split(" ")
     .filter(Boolean)
@@ -13,19 +24,16 @@ export default function WorkspaceCard({ workspace, onClick }) {
     ? new Date(workspace.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
 
-  return (
+  const card = (
     <button
       type="button"
       onClick={onClick}
       className="group cursor-pointer text-left w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--primary)]/50 hover:shadow-[var(--shadow-md)] focus-visible:outline-2 focus-visible:outline-[color:var(--primary)]"
     >
-      {/* Top teal accent bar */}
       <div className="h-1 bg-[color:var(--primary)] opacity-80 group-hover:opacity-100 transition-opacity" />
 
       <div className="p-4 flex flex-col gap-3">
-        {/* Header row */}
         <div className="flex items-start gap-3">
-          {/* Avatar */}
           <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-[color:var(--primary-soft)] text-[color:var(--primary)] text-sm font-bold shrink-0">
             {initials}
           </span>
@@ -43,7 +51,6 @@ export default function WorkspaceCard({ workspace, onClick }) {
           </div>
         </div>
 
-        {/* Footer row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 text-[11px] text-[color:var(--foreground-muted)]">
             {formattedDate && (
@@ -63,5 +70,29 @@ export default function WorkspaceCard({ workspace, onClick }) {
         </div>
       </div>
     </button>
+  );
+
+  // Only the workspace owner can hide or delete it.
+  if (!canManage) {
+    return card;
+  }
+
+  return (
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger>{card}</ContextMenuTrigger>
+        <ContextMenuContent className="w-44">
+          <ContextMenuItem onClick={() => setHideOpen(true)}>
+            <EyeOff className="w-3.5 h-3.5" /> Hide workspace
+          </ContextMenuItem>
+          <ContextMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="w-3.5 h-3.5" /> Delete workspace
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <DeleteWorkspaceDialog workspace={workspace} open={deleteOpen} onOpenChange={setDeleteOpen} />
+      <HideWorkspaceDialog workspace={workspace} open={hideOpen} onOpenChange={setHideOpen} mode="hide" />
+    </>
   );
 }
