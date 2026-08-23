@@ -89,7 +89,7 @@ const TABS = [
 ];
 
 // ── FlatList (used for Decision / Information / Reference) ───────────────────
-function FlatList({ tasks, members, EmptyIcon, emptyLabel }) {
+function FlatList({ tasks, members, EmptyIcon, emptyLabel, onChangeType }) {
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3 text-[color:var(--text-secondary)]">
@@ -103,9 +103,9 @@ function FlatList({ tasks, members, EmptyIcon, emptyLabel }) {
       <AnimatePresence>
         {tasks.map((task) => {
           if (task.type === "Decision")
-            return <DecisionItem key={task.id} task={task} members={members} />;
+            return <DecisionItem key={task.id} task={task} members={members} onChangeType={onChangeType} />;
           if (task.type === "Information")
-            return <InfoItem key={task.id} task={task} members={members} />;
+            return <InfoItem key={task.id} task={task} members={members} onChangeType={onChangeType} />;
           if (task.type === "Reference")
             return <ReferenceItem key={task.id} task={task} />;
           return null;
@@ -199,6 +199,27 @@ export default function TaskBoardPage() {
       });
     },
     [dispatch, workspaceId]
+  );
+
+  // Manually move a task between categories (Action/Decision/Information/
+  // Reference) — e.g. correcting an AI misclassification. The task simply
+  // re-appears in whichever tab/section matches its new type, since every
+  // list above is derived from allTasks via useMemo filtering on task.type.
+  const handleChangeType = useCallback(
+    (taskId, nextType) => {
+      const existing = allTasks.find((t) => t.id === taskId);
+      if (!existing || existing.type === nextType) return;
+
+      const data = { type: nextType };
+      // Action items are grouped by status; give it a valid status so it
+      // lands in a visible section instead of disappearing from the board.
+      if (nextType === "Action" && !["To Do", "In Progress", "Completed"].includes(existing.status)) {
+        data.status = "To Do";
+      }
+
+      handleUpdate(taskId, data);
+    },
+    [allTasks, handleUpdate]
   );
 
   const handleStatusChange = useCallback(
@@ -359,6 +380,7 @@ export default function TaskBoardPage() {
                     defaultCollapsed={defaultCollapsed}
                     onUpdate={handleUpdate}
                     onStatusChange={handleStatusChange}
+                    onChangeType={handleChangeType}
                     onDelete={handleDelete}
                     onAddSubtask={handleAddSubtask}
                     onAdd={handleAdd}
@@ -375,6 +397,7 @@ export default function TaskBoardPage() {
                 members={members}
                 EmptyIcon={GitBranch}
                 emptyLabel="No decisions captured yet"
+                onChangeType={handleChangeType}
               />
             )}
 
@@ -385,6 +408,7 @@ export default function TaskBoardPage() {
                 members={members}
                 EmptyIcon={Info}
                 emptyLabel="No information nodes detected yet"
+                onChangeType={handleChangeType}
               />
             )}
 

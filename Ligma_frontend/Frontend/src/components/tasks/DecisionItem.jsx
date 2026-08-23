@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { GitBranch, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "./MemberSelector";
+import { TypeSelector } from "./TypeSelector";
 import { format, isValid } from "date-fns";
 
 // ── Decision card ─────────────────────────────────────────────────────────────
@@ -10,6 +11,7 @@ export const DecisionItem = memo(function DecisionItem({
   task,
   members = [],
   onUpdate,
+  onChangeType,
   onDelete,
 }) {
   const assignee = members.find(
@@ -46,7 +48,12 @@ export const DecisionItem = memo(function DecisionItem({
       </div>
 
       {/* Meta */}
-      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+      <div className="flex items-center gap-1 flex-shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onChangeType && !String(task.id).endsWith("__ref") && (
+          <TypeSelector compact value={task.type || "Decision"} onChange={(nextType) => onChangeType(task.id, nextType)} />
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
         {hasDue && (
           <span className="text-[10px] text-[color:var(--text-secondary)] bg-[color:var(--bg-primary)] px-1.5 py-0.5 rounded border border-[color:var(--border)]">
             {format(dueDate, "M/d/yy")}

@@ -80,6 +80,7 @@ export const TaskSection = memo(function TaskSection({
   members,
   onUpdate,
   onStatusChange,
+  onChangeType,
   onDelete,
   onAddSubtask,
   onAdd,
@@ -143,7 +144,7 @@ export const TaskSection = memo(function TaskSection({
                 <AnimatePresence>
                   {orderedTasks.map((task) => {
                     const isDraggable = !task.priority;
-                    return isDraggable ? (
+                                      return isDraggable ? (
                       <SortableTaskItem
                         key={task.id}
                         task={task}
@@ -154,6 +155,7 @@ export const TaskSection = memo(function TaskSection({
                         onToggleSelect={toggleSelect}
                         onUpdate={onUpdate}
                         onStatusChange={onStatusChange}
+                        onChangeType={onChangeType}
                         onDelete={onDelete}
                         onAddSubtask={onAddSubtask}
                       />
@@ -168,11 +170,12 @@ export const TaskSection = memo(function TaskSection({
                         onToggleSelect={toggleSelect}
                         onUpdate={onUpdate}
                         onStatusChange={onStatusChange}
+                        onChangeType={onChangeType}
                         onDelete={onDelete}
                         onAddSubtask={onAddSubtask}
                         dragHandleProps={null} // locked — no drag
                       />
-                    );
+                    );  
                   })}
                 </AnimatePresence>
               </SortableContext>

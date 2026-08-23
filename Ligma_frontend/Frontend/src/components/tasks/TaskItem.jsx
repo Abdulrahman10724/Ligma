@@ -8,6 +8,7 @@ import { MemberSelector } from "./MemberSelector";
 import { TaskDatePicker } from "./TaskDatePicker";
 import { InlineTitleEditor } from "./InlineTitleEditor";
 import { DescriptionViewer } from "./DescriptionViewer";
+import { TypeSelector } from "./TypeSelector";
 
 const INDENT = 20;
 
@@ -73,6 +74,7 @@ export const TaskItem = memo(function TaskItem({
   onToggleSelect,
   onUpdate,
   onStatusChange,
+  onChangeType,
   onDelete,
   onAddSubtask,
   dragHandleProps, // null = locked (has priority), object = useSortable listeners
@@ -193,6 +195,11 @@ export const TaskItem = memo(function TaskItem({
                         <Icon className="w-3 h-3" />
                       </button>
                     ))}
+                    <TypeSelector
+                      compact
+                      value={task.type || "Action"}
+                      onChange={(nextType) => onChangeType?.(task.id, nextType)}
+                    />
                   </div>
                 </>
               )}
@@ -263,6 +270,7 @@ export const TaskItem = memo(function TaskItem({
                   onToggleSelect={onToggleSelect}
                   onUpdate={onUpdate}
                   onStatusChange={onStatusChange}
+                  onChangeType={onChangeType}
                   onDelete={onDelete}
                   onAddSubtask={onAddSubtask}
                   dragHandleProps={null} // subtasks are never manually sortable
