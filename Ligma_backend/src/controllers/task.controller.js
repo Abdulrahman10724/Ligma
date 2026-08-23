@@ -27,13 +27,7 @@ const updateTask = async (req, res) => {
   try {
     const { workspaceId, taskId } = req.params;
     const parsed = updateTaskSchema.parse(req.body);
-    const existing = await taskService.getTaskById(taskId);
-if (!existing || existing.workspaceId !== workspaceId) {
-  const error = new Error("Task not found");
-  error.statusCode = 404;
-  throw error;
-}
-    const updated = await taskService.updateTaskForNode(workspaceId, existing.nodeId || null, parsed, req.user.id);
+    const updated = await taskService.updateTaskById(workspaceId, taskId, parsed, req.user.id);
     return sendSuccess(res, 200, "Task updated", updated);
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message || "Invalid request", err?.errors || null);
@@ -44,19 +38,12 @@ const updateStatus = async (req, res) => {
   try {
     const { workspaceId, taskId } = req.params;
     const { status } = statusSchema.parse(req.body);
-   const existing = await taskService.getTaskById(taskId);
-if (!existing || existing.workspaceId !== workspaceId) {
-  const error = new Error("Task not found");
-  error.statusCode = 404;
-  throw error;
-}
-    const updated = await taskService.updateTaskForNode(workspaceId, existing.nodeId || null, { status }, req.user.id);
+    const updated = await taskService.updateTaskById(workspaceId, taskId, { status }, req.user.id);
     return sendSuccess(res, 200, "Status updated", updated);
   } catch (err) {
     return sendError(res, err.statusCode || 400, err.message || "Invalid request", err?.errors || null);
   }
 };
-
 const deleteTask = async (req, res) => {
   try {
     const { workspaceId, taskId } = req.params;

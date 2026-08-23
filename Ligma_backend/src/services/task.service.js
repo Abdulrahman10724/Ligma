@@ -239,6 +239,50 @@ const getTaskById = async (taskId) => {
   return sanitizeTask(t);
 };
 
-export { ensureIndexes, listTasks, createTaskForNode, updateTaskForNode, removeTaskForNode, removeTaskById, getTaskById };
+const updateTaskById = async (workspaceId, taskId, data = {}, actorId = null) => {
+  await ensureIndexes();
+  await assertWorkspaceEditAccess(workspaceId, actorId);
 
-export default { ensureIndexes, listTasks, createTaskForNode, updateTaskForNode, removeTaskForNode, removeTaskById, getTaskById };
+  const existing = await findTaskById(taskId);
+  if (!existing || existing.workspaceId?.toString() !== workspaceId) {
+    const error = new Error("Task not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const fields = {};
+  const allowed = ["title", "description", "status", "assigneeId", "dueDate", "priority", "order", "metadata", "type"];
+  for (const k of allowed) {
+    if (data[k] !== undefined) fields[k] = data[k];
+  }
+
+  const updated = await updateTask(taskId, workspaceId, fields);
+  const sanitized = sanitizeTask(updated);
+
+  try {
+    await appendEvent({
+      workspaceId,
+      userId: actorId || data.userId || sanitized.assigneeId || updated?.workspaceId?.toString(),
+      eventType: EVENT_TYPES.TASK_UPDATED,
+      taskId: sanitized.id,
+      nodeId: sanitized.nodeId || null,
+      payload: {
+        previousFields: fields,
+        nextFields: Object.keys(fields).reduce((acc, key) => ({ ...acc, [key]: sanitized[key] }), {}),
+      },
+    });
+  } catch (err) {
+    logger.warn("event logging failed on task update", err?.message || err);
+  }
+
+  try {
+    emitWorkspaceEvent(workspaceId, "tasks:updated", sanitized);
+  } catch (err) {
+    logger.warn("emit tasks:updated failed", err?.message || err);
+  }
+  return sanitized;
+};
+
+export { ensureIndexes, listTasks, createTaskForNode, updateTaskForNode, updateTaskById, removeTaskForNode, removeTaskById, getTaskById };
+
+export default { ensureIndexes, listTasks, createTaskForNode, updateTaskForNode, updateTaskById, removeTaskForNode, removeTaskById, getTaskById };
