@@ -74,11 +74,8 @@ const updateWorkspaceById = async (workspaceId, ownerId, updateFields) => {
     updatedAt: now,
   };
 
-  const deleteWorkspaceById = async (workspaceId, ownerId) =>
-  getWorkspacesCollection().deleteOne({
-    _id: new ObjectId(workspaceId),
-    ownerId: new ObjectId(ownerId),
-  });
+
+  
 
   const result = await getWorkspacesCollection().findOneAndUpdate(
     { _id: new ObjectId(workspaceId), ownerId: new ObjectId(ownerId) },
@@ -88,7 +85,11 @@ const updateWorkspaceById = async (workspaceId, ownerId, updateFields) => {
 
   return result;
 };
-
+const deleteWorkspaceById = async (workspaceId, ownerId) =>
+  getWorkspacesCollection().deleteOne({
+    _id: new ObjectId(workspaceId),
+    ownerId: new ObjectId(ownerId),
+  });
 export {
   COLLECTION_NAME,
   ensureWorkspaceIndexes,
