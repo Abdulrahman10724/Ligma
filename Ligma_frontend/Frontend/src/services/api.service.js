@@ -14,7 +14,7 @@ const apiClient = axios.create({
 // Request Interceptor: Attach JWT Token from localStorage if present
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("ligma_token");
+    const token = localStorage.getItem("Scrybe_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -53,7 +53,7 @@ apiClient.interceptors.response.use(
       !isAuthRoute
     ) {
       originalRequest._retry = true;
-      localStorage.removeItem("ligma_token");
+      localStorage.removeItem("Scrybe_token");
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }

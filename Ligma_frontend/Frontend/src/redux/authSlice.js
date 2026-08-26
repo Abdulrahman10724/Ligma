@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
 import authService from "../services/auth.service";
 
-const tokenKey = "ligma_token";
+const tokenKey = "Scrybe_token";
 
 const initialState = {
   user: null,

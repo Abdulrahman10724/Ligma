@@ -96,7 +96,7 @@ export default function LandingNav() {
               color: "var(--foreground)",
             }}
           >
-            LIGMA
+            Scrybe
           </span>
         </a>
 

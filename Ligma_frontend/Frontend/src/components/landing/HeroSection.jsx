@@ -679,7 +679,7 @@ export default function HeroSection() {
               maxWidth: 260,
             }}
           >
-            ligma.app/canvas/sprint-planning
+            Scrybe.app/canvas/sprint-planning
           </div>
           {/* Presence indicators */}
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: -4 }}>

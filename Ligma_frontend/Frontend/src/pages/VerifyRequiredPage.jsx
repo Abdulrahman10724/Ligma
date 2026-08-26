@@ -53,7 +53,7 @@ setFeedback(result.payload?.message || "We couldn't send another verification em
               One more step before you continue
             </h1>
             <p className="text-sm leading-7 text-[color:var(--foreground-muted)] sm:text-base">
-              We sent a verification link to {email}. Open it to unlock the rest of LIGMA.
+              We sent a verification link to {email}. Open it to unlock the rest of Scrybe.
             </p>
           </div>
         </div>

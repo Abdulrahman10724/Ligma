@@ -43,7 +43,7 @@ const createBullMQConnection = (role) => {
       }
       return Math.min(retries * 200, 3000);
     },
-    connectionName: `ligma:${role}`,
+    connectionName: `Scrybe:${role}`,
   });
 
   connection.on("error", (error) => {

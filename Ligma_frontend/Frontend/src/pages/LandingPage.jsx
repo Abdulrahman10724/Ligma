@@ -13,7 +13,7 @@ import LandingFooter from "../components/landing/LandingFooter";
 export default function LandingPage() {
   // Set page title & meta
   useEffect(() => {
-    document.title = "LIGMA — AI-Powered Collaborative Infinite Canvas";
+    document.title = "Scrybe — AI-Powered Collaborative Infinite Canvas";
     // meta description
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
@@ -22,7 +22,7 @@ export default function LandingPage() {
       document.head.appendChild(meta);
     }
     meta.content =
-      "LIGMA turns your team's brainstorming sessions into structured tasks automatically. Infinite canvas + real-time multiplayer + AI intent classification = zero manual Jira tickets.";
+      "Scrybe turns your team's brainstorming sessions into structured tasks automatically. Infinite canvas + real-time multiplayer + AI intent classification = zero manual Jira tickets.";
   }, []);
 
   return (

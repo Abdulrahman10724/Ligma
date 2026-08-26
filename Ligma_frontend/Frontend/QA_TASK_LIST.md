@@ -54,7 +54,7 @@ QA Checklist (pass/fail)
 
 Integration Notes
 - Styles are additive; include `src/styles/taskTokens.css` in your layout or component entry.
-- `TaskList` emits `ligma:tasks:edit` and `ligma:tasks:refresh` events for simple integration hooks; parent can listen and act.
+- `TaskList` emits `Scrybe:tasks:edit` and `Scrybe:tasks:refresh` events for simple integration hooks; parent can listen and act.
 
 
 *** End Patch

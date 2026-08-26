@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────
-# Ligma Frontend — Production Dockerfile (React / Vite)
+# Scrybe Frontend — Production Dockerfile (React / Vite)
 # Multi-stage build: compile static assets with Node, then serve
 # them from a lean nginx image.
 # ─────────────────────────────────────────────────────────────────

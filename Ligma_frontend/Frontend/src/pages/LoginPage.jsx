@@ -169,7 +169,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="relative text-xs text-[color:var(--foreground-muted)]">
-          LIGMA © {new Date().getFullYear()}
+          Scrybe © {new Date().getFullYear()}
         </p>
       </div>
 

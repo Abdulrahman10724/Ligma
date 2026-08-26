@@ -62,7 +62,7 @@ const from = location.state?.from
             <span className="text-[color:var(--primary)]">think clearly.</span>
           </h2>
           <p className="text-sm text-[color:var(--foreground-secondary)] max-w-xs leading-relaxed">
-            Join LIGMA and collaborate in real time on an infinite canvas. Invite your team, assign roles, and track every decision.
+            Join Scrybe and collaborate in real time on an infinite canvas. Invite your team, assign roles, and track every decision.
           </p>
           <div className="grid grid-cols-2 gap-3 pt-2">
             {[
@@ -79,7 +79,7 @@ const from = location.state?.from
           </div>
         </div>
 
-        <p className="relative text-xs text-[color:var(--foreground-muted)]">LIGMA © {new Date().getFullYear()}</p>
+        <p className="relative text-xs text-[color:var(--foreground-muted)]">Scrybe © {new Date().getFullYear()}</p>
       </div>
 
       {/* ── Right auth panel ─────────────────────────────────────────────── */}

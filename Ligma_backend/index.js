@@ -107,7 +107,7 @@ const startServer = async () => {
   app.get("/", (req, res) =>
     res.json({
       success: true,
-      message: "Ligma API is running",
+      message: "Scrybe API is running",
       version: "14.0",
       env: config.NODE_ENV,
     })
@@ -147,7 +147,7 @@ const startServer = async () => {
   app.use(errorHandler);
 
   server.listen(config.PORT, () => {
-    logger.info(`🚀 Ligma backend running on port ${config.PORT} (${config.NODE_ENV})`);
+    logger.info(`🚀 Scrybe backend running on port ${config.PORT} (${config.NODE_ENV})`);
   });
 
   if (backgroundJobsEnabled) {

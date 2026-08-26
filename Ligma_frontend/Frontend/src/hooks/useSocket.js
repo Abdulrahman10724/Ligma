@@ -8,7 +8,7 @@ const joinedWorkspaces = new Set();
 const workspaceRefCounts = new Map(); // workspaceId -> number of active consumers
 
 const ensureSocket = () => {
-  const token = localStorage.getItem("ligma_token");
+  const token = localStorage.getItem("Scrybe_token");
 
   if (socketInstance) {
     // Token badal gaya (login/logout/account switch) — socket ko naye

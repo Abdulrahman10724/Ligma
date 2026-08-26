@@ -64,7 +64,7 @@ export default function LandingFooter() {
                   color: "var(--foreground)",
                 }}
               >
-                LIGMA
+                Scrybe
               </span>
             </div>
             <p style={{ fontSize: 13, color: "var(--foreground-muted)", lineHeight: 1.65, margin: 0 }}>
@@ -142,7 +142,7 @@ export default function LandingFooter() {
           }}
         >
           <span style={{ fontSize: 12, color: "var(--foreground-muted)" }}>
-            © {new Date().getFullYear()} LIGMA. Built with care.
+            © {new Date().getFullYear()} Scrybe. Built with care.
           </span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

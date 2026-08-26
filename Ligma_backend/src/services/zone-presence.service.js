@@ -9,7 +9,7 @@ import { findZonesByWorkspace, sanitizeZone } from "../models/zone.model.js";
 const zonesCache = new Map(); // workspaceId -> { zones: [{...}], ts: timestamp }
 const CACHE_TTL_MS = 4000;
 
-// Ligma_backend/src/services/zone-presence.service.js
+// Scrybe_backend/src/services/zone-presence.service.js
 // (add near top, after CACHE_TTL_MS)
 
 const MAX_CACHE_ENTRIES = 500;

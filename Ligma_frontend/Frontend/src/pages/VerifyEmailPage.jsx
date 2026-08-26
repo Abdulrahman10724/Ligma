@@ -71,14 +71,14 @@ export default function VerifyEmailPage() {
             </h2>
             <p className="mt-2 text-sm text-[color:var(--foreground-muted)]">
               {verificationMessage ||
-                "You can continue into LIGMA and start working with your team."}
+                "You can continue into Scrybe and start working with your team."}
             </p>
           </div>
           <Link
             to="/dashboard"
             className="inline-flex items-center justify-center rounded-full bg-[color:var(--primary)] px-4 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] transition hover:bg-[color:var(--primary-hover)]"
           >
-            Continue to LIGMA
+            Continue to Scrybe
           </Link>
         </div>
       );
@@ -157,7 +157,7 @@ export default function VerifyEmailPage() {
               Email verification
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-4xl">
-              Finish securing your LIGMA workspace
+              Finish securing your Scrybe workspace
             </h1>
             <p className="text-sm leading-7 text-[color:var(--foreground-muted)] sm:text-base">
               Confirm your inbox, verify your address, and continue into your

@@ -1,5 +1,5 @@
 /**
- * BrandMark — LIGMA connected-nodes geometric logo.
+ * BrandMark — Scrybe connected-nodes geometric logo.
  * CSS/SVG only, works in light and dark themes via --primary token.
  * Sizes: "sm" (20px), "md" (28px, default), "lg" (40px)
  */
@@ -50,7 +50,7 @@ export function BrandLockup({ size = "md", showMark = true, className = "" }) {
         className={`${textSize} font-black tracking-[0.12em] leading-none select-none`}
         style={{ letterSpacing: "0.12em" }}
       >
-        LIGMA
+        Scrybe
       </span>
     </div>
   );

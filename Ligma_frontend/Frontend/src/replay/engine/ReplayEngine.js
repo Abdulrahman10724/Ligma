@@ -7,7 +7,7 @@
 // side effects: no Redux dispatches, no API calls, no Socket.IO, no DOM.
 //
 // The engine mirrors the exact payload shape used by the backend event log
-// (see Ligma_backend/src/services/canvas-node.service.js and task.service.js):
+// (see Scrybe_backend/src/services/canvas-node.service.js and task.service.js):
 //   • NODE_CREATED           → payload.snapshot
 //   • NODE_UPDATED           → previousData / nextData (+ nextPosition)
 //   • NODE_MOVED             → previousPosition / nextPosition
