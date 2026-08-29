@@ -10,9 +10,23 @@ const VALID_NODE_TYPES = ["sticky", "text", "rectangle", "circle", "arrow", "dia
 // Empty array = unrestricted: every Contributor (+ Lead, always) can edit.
 const DEFAULT_ALLOWED_USER_IDS = [];
 
+let canvasNodeIndexesReady = false;
+let canvasNodeIndexesPromise = null;
+
 const ensureCanvasNodeIndexes = async () => {
-  await getCanvasNodesCollection().createIndex({ workspaceId: 1, createdAt: -1 });
-  await getCanvasNodesCollection().createIndex({ workspaceId: 1, type: 1 });
+  if (canvasNodeIndexesReady) return;
+
+  if (!canvasNodeIndexesPromise) {
+    canvasNodeIndexesPromise = (async () => {
+      await getCanvasNodesCollection().createIndex({ workspaceId: 1, createdAt: -1 });
+      await getCanvasNodesCollection().createIndex({ workspaceId: 1, type: 1 });
+      canvasNodeIndexesReady = true;
+    })().finally(() => {
+      canvasNodeIndexesPromise = null;
+    });
+  }
+
+  await canvasNodeIndexesPromise;
 };
 
 const sanitizeCanvasNode = (node) => {

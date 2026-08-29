@@ -42,7 +42,10 @@ const buildNodeUpdateEvent = (beforeNode, afterNode, payload) => {
   const hasX = payload?.x !== undefined;
   const hasY = payload?.y !== undefined;
   const hasData = payload?.data !== undefined;
-  const dataKeys = hasData && payload.data && typeof payload.data === "object" ? Object.keys(payload.data) : [];
+  const dataKeys =
+    hasData && payload.data && typeof payload.data === "object"
+      ? Object.keys(payload.data)
+      : [];
   const geometryTouched = dataKeys.some((key) => NODE_GEOMETRY_KEYS.has(key));
 
   if ((hasX || hasY) && !hasData) {
@@ -70,8 +73,12 @@ const buildNodeUpdateEvent = (beforeNode, afterNode, payload) => {
   return {
     eventType: EVENT_TYPES.NODE_UPDATED,
     payload: {
-      previousData: hasData ? pickKeys(beforeNode.data || {}, dataKeys) : beforeNode.data || {},
-      nextData: hasData ? pickKeys(afterNode.data || {}, dataKeys) : afterNode.data || {},
+      previousData: hasData
+        ? pickKeys(beforeNode.data || {}, dataKeys)
+        : beforeNode.data || {},
+      nextData: hasData
+        ? pickKeys(afterNode.data || {}, dataKeys)
+        : afterNode.data || {},
       nextPosition: { x: afterNode.x, y: afterNode.y },
     },
   };
@@ -110,33 +117,39 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
 
   const { type, x, y, data, parentNodeId } = payload;
 
-  const node = await createNode({ workspaceId, createdById: userId, type, x, y, data, parentNodeId });
+  const node = await createNode({
+    workspaceId,
+    createdById: userId,
+    type,
+    x,
+    y,
+    data,
+    parentNodeId,
+  });
   const sanitized = sanitizeCanvasNode(node);
 
-  try {
-    await appendEvent({
-      workspaceId,
-      userId,
-      eventType: EVENT_TYPES.NODE_CREATED,
-      nodeId: sanitized.id,
-      payload: {
-        snapshot: {
-          id: sanitized.id,
-          type: sanitized.type,
-          x: sanitized.x,
-          y: sanitized.y,
-          data: sanitized.data || {},
-          locked: sanitized.locked,
-          lockedBy: sanitized.lockedBy,
-          lockedAt: sanitized.lockedAt,
-          allowedUserIds: sanitized.allowedUserIds || [],
-          createdById: sanitized.createdById,
-        },
+  appendEvent({
+    workspaceId,
+    userId,
+    eventType: EVENT_TYPES.NODE_CREATED,
+    nodeId: sanitized.id,
+    payload: {
+      snapshot: {
+        id: sanitized.id,
+        type: sanitized.type,
+        x: sanitized.x,
+        y: sanitized.y,
+        data: sanitized.data || {},
+        locked: sanitized.locked,
+        lockedBy: sanitized.lockedBy,
+        lockedAt: sanitized.lockedAt,
+        allowedUserIds: sanitized.allowedUserIds || [],
+        createdById: sanitized.createdById,
       },
-    });
-  } catch (error) {
+    },
+  }).catch((error) => {
     logger.warn("event logging failed on node create", error?.message || error);
-  }
+  });
 
   const text = getNodeText(sanitized);
   if (text.trim()) {
@@ -146,7 +159,10 @@ const createCanvasNode = async (workspaceId, userId, payload) => {
       actorId: userId,
       nodeUpdatedAt: toIsoString(sanitized.updatedAt),
     }).catch((error) => {
-      logger.warn("classification job enqueue failed on node create", { message: error?.message, nodeId: sanitized.id });
+      logger.warn("classification job enqueue failed on node create", {
+        message: error?.message,
+        nodeId: sanitized.id,
+      });
     });
   }
 
@@ -165,29 +181,40 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
   }
 
   if (Object.prototype.hasOwnProperty.call(updateFields, "parentNodeId")) {
-    updateFields.parentNodeId = updateFields.parentNodeId ? new ObjectId(updateFields.parentNodeId) : null;
+    updateFields.parentNodeId = updateFields.parentNodeId
+      ? new ObjectId(updateFields.parentNodeId)
+      : null;
   }
 
   const updated = await updateNode(nodeId, workspaceId, updateFields);
   const sanitized = sanitizeCanvasNode(updated);
 
-  try {
-    const event = buildNodeUpdateEvent(existing, sanitized, payload);
-    await appendEvent({
-      workspaceId,
-      userId,
-      eventType: event.eventType,
-      nodeId: sanitized.id,
-      payload: event.payload,
-    });
-  } catch (error) {
+  const event = buildNodeUpdateEvent(existing, sanitized, payload);
+  appendEvent({
+    workspaceId,
+    userId,
+    eventType: event.eventType,
+    nodeId: sanitized.id,
+    payload: event.payload,
+  }).catch((error) => {
     logger.warn("event logging failed on node update", error?.message || error);
-  }
-
+  });
   const previousText = getNodeText(existing);
   const nextText = getNodeText(sanitized);
-  const textKey = existing.type ? (existing.type === "rectangle" || existing.type === "circle" || existing.type === "arrow" || existing.type === "diamond" || existing.type === "triangle" || existing.type === "line" ? "label" : "text") : null;
-  const textFieldWasUpdated = payload.data && textKey && Object.prototype.hasOwnProperty.call(payload.data, textKey);
+  const textKey = existing.type
+    ? existing.type === "rectangle" ||
+      existing.type === "circle" ||
+      existing.type === "arrow" ||
+      existing.type === "diamond" ||
+      existing.type === "triangle" ||
+      existing.type === "line"
+      ? "label"
+      : "text"
+    : null;
+  const textFieldWasUpdated =
+    payload.data &&
+    textKey &&
+    Object.prototype.hasOwnProperty.call(payload.data, textKey);
   const textActuallyChanged = textFieldWasUpdated && nextText !== previousText;
 
   if (textActuallyChanged) {
@@ -197,7 +224,10 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
       actorId: userId,
       nodeUpdatedAt: toIsoString(sanitized.updatedAt),
     }).catch((error) => {
-      logger.warn("classification job enqueue failed on node update", { message: error?.message, nodeId: sanitized.id });
+      logger.warn("classification job enqueue failed on node update", {
+        message: error?.message,
+        nodeId: sanitized.id,
+      });
     });
   }
 
@@ -206,32 +236,31 @@ const updateCanvasNode = async (workspaceId, userId, nodeId, payload) => {
 const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
   const { existing } = await assertNodeAccess(workspaceId, userId, nodeId);
 
-  try {
-    await appendEvent({
-      workspaceId,
-      userId,
-      eventType: EVENT_TYPES.NODE_DELETED,
-      nodeId: existing._id.toString(),   // ✅ _id use karo, id nahi
-      payload: {
-        snapshot: {
-          id: existing._id.toString(),   // ✅ simplify — hamesha _id hoga yahan
-          type: existing.type,
-          x: existing.x,
-          y: existing.y,
-          data: existing.data || {},
-          locked: existing.locked,
-          lockedBy: existing.lockedBy ? existing.lockedBy.toString() : null,
-          lockedAt: existing.lockedAt || null,
-          allowedUserIds: existing.allowedUserIds || [],
-          createdById: existing.createdById ? existing.createdById.toString() : existing.createdById,
-        },
+  appendEvent({
+    workspaceId,
+    userId,
+    eventType: EVENT_TYPES.NODE_DELETED,
+    nodeId: existing._id.toString(),
+    payload: {
+      snapshot: {
+        id: existing._id.toString(),
+        type: existing.type,
+        x: existing.x,
+        y: existing.y,
+        data: existing.data || {},
+        locked: existing.locked,
+        lockedBy: existing.lockedBy ? existing.lockedBy.toString() : null,
+        lockedAt: existing.lockedAt || null,
+        allowedUserIds: existing.allowedUserIds || [],
+        createdById: existing.createdById
+          ? existing.createdById.toString()
+          : existing.createdById,
       },
-      validateNode: false,
-    });
-  } catch (error) {
+    },
+    validateNode: false,
+  }).catch((error) => {
     logger.warn("event logging failed on node delete", error?.message || error);
-  }
-
+  });
 
   await deleteNode(nodeId, workspaceId);
   void enqueueTaskJob({
@@ -241,7 +270,10 @@ const deleteCanvasNode = async (workspaceId, userId, nodeId) => {
     action: "delete",
     nodeUpdatedAt: toIsoString(existing.updatedAt),
   }).catch((error) => {
-    logger.warn("task delete job enqueue failed on node delete", { message: error?.message, nodeId });
+    logger.warn("task delete job enqueue failed on node delete", {
+      message: error?.message,
+      nodeId,
+    });
   });
 };
 
@@ -261,21 +293,19 @@ const lockCanvasNode = async (workspaceId, userId, nodeId) => {
     lockedAt: new Date(),
   });
 
-  try {
-    await appendEvent({
-      workspaceId,
-      userId,
-      eventType: EVENT_TYPES.NODE_LOCKED,
-      nodeId,
-      payload: {
-        locked: true,
-        lockedBy: userId,
-        lockedAt: updated?.lockedAt || new Date().toISOString(),
-      },
-    });
-  } catch (error) {
+    appendEvent({
+    workspaceId,
+    userId,
+    eventType: EVENT_TYPES.NODE_LOCKED,
+    nodeId,
+    payload: {
+      locked: true,
+      lockedBy: userId,
+      lockedAt: updated?.lockedAt || new Date().toISOString(),
+    },
+  }).catch((error) => {
     logger.warn("event logging failed on node lock", error?.message || error);
-  }
+  });
 
   return sanitizeCanvasNode(updated);
 };
@@ -296,26 +326,29 @@ const unlockCanvasNode = async (workspaceId, userId, nodeId) => {
     lockedAt: null,
   });
 
-  try {
-    await appendEvent({
-      workspaceId,
-      userId,
-      eventType: EVENT_TYPES.NODE_UNLOCKED,
-      nodeId,
-      payload: {
-        locked: false,
-        lockedBy: null,
-        lockedAt: null,
-      },
-    });
-  } catch (error) {
+   appendEvent({
+    workspaceId,
+    userId,
+    eventType: EVENT_TYPES.NODE_UNLOCKED,
+    nodeId,
+    payload: {
+      locked: false,
+      lockedBy: null,
+      lockedAt: null,
+    },
+  }).catch((error) => {
     logger.warn("event logging failed on node unlock", error?.message || error);
-  }
+  });
 
   return sanitizeCanvasNode(updated);
 };
 
-const updateCanvasNodePermissions = async (workspaceId, userId, nodeId, allowedUserIds) => {
+const updateCanvasNodePermissions = async (
+  workspaceId,
+  userId,
+  nodeId,
+  allowedUserIds,
+) => {
   await assertWorkspaceLead(workspaceId, userId);
 
   const existing = await findNodeById(nodeId);
@@ -325,29 +358,44 @@ const updateCanvasNodePermissions = async (workspaceId, userId, nodeId, allowedU
     throw error;
   }
 
-  const normalizedAllowedUserIds = await normalizeNodeAllowedUserIds(workspaceId, allowedUserIds);
-  const beforeAllowedUserIds = Array.isArray(existing.allowedUserIds) ? existing.allowedUserIds.map((id) => id.toString()) : [];
-  const updated = await updateNode(nodeId, workspaceId, { allowedUserIds: normalizedAllowedUserIds });
+  const normalizedAllowedUserIds = await normalizeNodeAllowedUserIds(
+    workspaceId,
+    allowedUserIds,
+  );
+  const beforeAllowedUserIds = Array.isArray(existing.allowedUserIds)
+    ? existing.allowedUserIds.map((id) => id.toString())
+    : [];
+  const updated = await updateNode(nodeId, workspaceId, {
+    allowedUserIds: normalizedAllowedUserIds,
+  });
 
-  try {
-    await appendEvent({
-      workspaceId,
-      userId,
-      eventType: EVENT_TYPES.NODE_PERMISSION_CHANGED,
-      nodeId,
-      payload: {
-        previousAllowedUserIds: beforeAllowedUserIds,
-        nextAllowedUserIds: normalizedAllowedUserIds,
-      },
-    });
-  } catch (error) {
+    appendEvent({
+    workspaceId,
+    userId,
+    eventType: EVENT_TYPES.NODE_PERMISSION_CHANGED,
+    nodeId,
+    payload: {
+      previousAllowedUserIds: beforeAllowedUserIds,
+      nextAllowedUserIds: normalizedAllowedUserIds,
+    },
+  }).catch((error) => {
     logger.warn("event logging failed on node permission change", error?.message || error);
-  }
+  });
 
   return sanitizeCanvasNode(updated);
 };
 
-export { VALID_NODE_TYPES, listCanvasNodes, createCanvasNode, updateCanvasNode, deleteCanvasNode, lockCanvasNode, unlockCanvasNode, updateCanvasNodePermissions, assertNodeAccess };
+export {
+  VALID_NODE_TYPES,
+  listCanvasNodes,
+  createCanvasNode,
+  updateCanvasNode,
+  deleteCanvasNode,
+  lockCanvasNode,
+  unlockCanvasNode,
+  updateCanvasNodePermissions,
+  assertNodeAccess,
+};
 
 export default {
   VALID_NODE_TYPES,

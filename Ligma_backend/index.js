@@ -71,7 +71,7 @@ const startBackgroundJobs = async () => {
     logger.info("✅ Background job workers started.");
     return true;
   } catch (error) {
-    backgroundJobsEnabled = true;
+    backgroundJobsEnabled = false;
     logger.error(`❌ BullMQ/Redis unavailable — background jobs disabled: ${error.message}`);
     return false;
   }
